@@ -1,0 +1,7 @@
+pyproject.toml
+./model/__init__.py
+./model/architectures.py
+utdl.egg-info/PKG-INFO
+utdl.egg-info/SOURCES.txt
+utdl.egg-info/dependency_links.txt
+utdl.egg-info/top_level.txt

@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "utdl"            # any name you like
+version = "0.0.1"
+
+[tool.setuptools]
+package-dir = {"" = "."}
+
+# Either explicitly list packages:
+packages = ["loss", "model", "optimization"]
+
+# Or use include patterns:
+# [tool.setuptools.packages.find]
+# where = ["."]
+# include = ["loss*", "model*", "optimization*"]
+# exclude = ["notebooks*", "data*", "assets*", "experiments*"]
