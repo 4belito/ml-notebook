@@ -12,6 +12,8 @@ package-dir = {"" = "."}
 # Either explicitly list packages:
 packages = ["loss", "model", "optimization"]
 
+[tool.ruff]
+line-length = 100
 # Or use include patterns:
 # [tool.setuptools.packages.find]
 # where = ["."]
