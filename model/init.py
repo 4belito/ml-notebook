@@ -6,6 +6,7 @@ import torch
 
 
 def _calculate_fan_in_and_fan_out(tensor: torch.Tensor):
+    """Calculates the fan-in and fan-out for a given tensor."""
     dimensions = tensor.dim()
     if dimensions < 2:
         raise ValueError("Fan in/out can not be computed for tensor with fewer than 2 dimensions")

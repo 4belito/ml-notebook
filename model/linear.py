@@ -15,6 +15,7 @@ class Linear(nn.Module):
         device: torch.device | str | None = None,
         dtype: torch.dtype | None = None,
         init_activation: str | None = None,
+        init_a: float = 0.0,
     ):
         super().__init__()
         W = torch.empty(output_dim, input_dim, device=device, dtype=dtype)
@@ -25,7 +26,7 @@ class Linear(nn.Module):
             case "relu":
                 nn.init.kaiming_uniform_(self.weight, a=0, nonlinearity="relu")
             case "leaky_relu":
-                nn.init.kaiming_uniform_(self.weight, a=math.sqrt(5), nonlinearity="leaky_relu")
+                nn.init.kaiming_uniform_(self.weight, a=init_a, nonlinearity="leaky_relu")
             case "tanh":
                 gain = nn.init.calculate_gain("tanh")
                 nn.init.xavier_uniform_(self.weight, gain=gain)
