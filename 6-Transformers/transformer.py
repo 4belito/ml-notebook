@@ -14,8 +14,47 @@ def attention_mask(seq_len, learned_embedding):
     return embed
 
 
+def causal_mask(size, rel_pos: torch.Tensor):
+    if size > rel_pos.size(-1):
+        rel_pos_padded = torch.cat(
+            [
+                rel_pos.new_full(
+                    (
+                        *rel_pos.shape[:-1],
+                        size - rel_pos.size(-1),
+                    ),
+                    -float("inf"),
+                ),
+                rel_pos.flip(-1),
+                rel_pos.new_full(
+                    (
+                        *rel_pos.shape[:-1],
+                        size,
+                    ),
+                    -float("inf"),
+                ),
+            ],
+            dim=-1,
+        )
+    else:
+        rel_pos_padded = torch.cat(
+            [
+                rel_pos[..., :size].flip(-1),
+                rel_pos.new_full(
+                    (
+                        *rel_pos.shape[:-1],
+                        size,
+                    ),
+                    -float("inf"),
+                ),
+            ],
+            dim=-1,
+        )
+    return rel_pos_padded[..., torch.arange(size)[None, :] - torch.arange(size)[:, None] + size - 1]
+
+
 class TransformerLayer(nn.Module):
-    def __init__(self, embed_dim, num_heads, res_pos_length=128):  #
+    def __init__(self, embed_dim, num_heads, res_pos_length=512):  #
         super().__init__()
         self.res_pos = nn.Parameter(torch.zeros(num_heads, res_pos_length))
         self.self_att = nn.MultiheadAttention(embed_dim, num_heads, batch_first=True)
@@ -30,7 +69,9 @@ class TransformerLayer(nn.Module):
     def forward(self, x: torch.Tensor):
         # Self-attention block
         x_norm = self.in_norm(x)
-        attn_mask = attention_mask(x.shape[1], self.res_pos)
+        B, L, _ = x.shape
+        attn_mask = causal_mask(L, self.res_pos)
+        attn_mask = attn_mask.repeat(B, 1, 1)
         x = (
             x + self.self_att(x_norm, x_norm, x_norm, attn_mask=attn_mask)[0]
         )  # , attn_mask=attn_mask
@@ -51,16 +92,17 @@ class Transformer(nn.Module):
         return self.network(x)
 
 
-def train():
-    device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+def train(device):
     print(f"{device=}")
     with open(__file__) as f:
         code = f.read()
-    tokens = torch.as_tensor([ord(c) for c in code]).to(device)  # (seq_len, batch_size)
-    net = Transformer(embed_dim=128, num_heads=8, num_layers=4).to(device)
+    tokens = torch.as_tensor([127] + [ord(c) for c in code] + [0]).to(
+        device
+    )  # (seq_len, batch_size)
+    net = Transformer(embed_dim=256, num_heads=8, num_layers=4).to(device)
     optimizer = torch.optim.AdamW(net.parameters(), lr=1e-3)
 
-    for epoch in range(200):
+    for epoch in range(400):
         pred = net(tokens[None, :-1])[0]  # (1, seq_len, vocab_size)
         loss = nn.functional.cross_entropy(pred, tokens[1:])
         optimizer.zero_grad()
@@ -69,10 +111,34 @@ def train():
         if epoch % 1 == 0:
             # print(f"target: {tokens[1:11]}")
             # print(f"pred : {pred[:10].argmax(-1)}")
+            # print(f"autoregressive prediction: {[chr(c) for c in pred[:10].argmax(-1).cpu().numpy()]}")
             print(f"Epoch {epoch}: loss={loss.item():.4f}")
+    net.eval()
+    net.cpu()
+    torch.save(net, "transformer.pth")
+
+
+def sample(device):
+    import sys
+
+    net = torch.load("transformer.pth", weights_only=False).to(device)
+    net.eval()
+    data = [127]  # start token
+    for _ in range(1000):
+        tokens = torch.as_tensor(data[-500:]).to(device)  # (1, seq_len)
+        pred = net(tokens[None])[0, -1]  # (1, seq_len, vocab_size)
+        next_token = pred.argmax(-1)  # (1,)
+        if next_token.item() == 0:  # end token
+            break
+        data.append(next_token)
+        sys.stdout.write(chr(next_token.item()))
+        sys.stdout.flush()
+    # print("".join(chr(c) for c in data))  # print generated code
 
 
 if __name__ == "__main__":
+    device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
     # learned_embed = torch.arange(6).float().view(2, 3)
     # print(attention_mask(5, learned_embed))
-    train()
+    train(device)
+    sample(device)
