@@ -2,6 +2,8 @@ raw_data/
 .vscode/
 __pycache__/
 *.pyc
+.DS_Store
+
 system_info.ipynb
 
 Information Theory/Raymond W. Yeung (auth.) - A First Course in Information Theory (2002, Springer).pdf
