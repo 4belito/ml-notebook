@@ -1,10 +1,12 @@
-raw_data/
 .vscode/
+.venv/
 __pycache__/
+raw_data/
 *.pyc
 .DS_Store
 *.egg-info/
-system_info.ipynb
 .python-version
 
+
+system_info.ipynb
 data/Information Theory/Raymond W. Yeung (auth.) - A First Course in Information Theory (2002, Springer).pdf
