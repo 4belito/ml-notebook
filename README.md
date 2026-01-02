@@ -19,3 +19,15 @@ empirical trial-and-error or production-level implementation.
 Most notebooks combine mathematical definitions with small, controlled experiments
 to illustrate assumptions, limitations, and trade-offs underlying modern machine
 learning methods.
+
+## Setup
+
+This project uses [`uv`](https://github.com/astral-sh/uv) for environment and dependency
+management, and an **editable install** so that notebooks can import code from the
+repository without modifying `PYTHONPATH`.
+
+After cloning the repository, run:
+
+```bash
+uv sync
+uv pip install -e .

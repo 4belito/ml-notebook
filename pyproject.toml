@@ -1,21 +1,27 @@
+[project]
+name = "ml-notebook"
+version = "0.1.0"
+description = "A learning-oriented collection of Jupyter notebooks exploring core machine learning concepts from a mathematically grounded, first-principles perspective, with emphasis on theoretical understanding, optimization, information theory, and principled PyTorch implementations."
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "imageio[ffmpeg]>=2.37.2",
+    "ipykernel>=7.1.0",
+    "matplotlib>=3.10.8",
+    "numpy>=2.4.0",
+    "pyitlib>=0.3.1",
+    "scikit-learn>=1.8.0",
+    "scipy>=1.16.3",
+    "torch>=2.9.1",
+    "torchvision>=0.24.1",
+]
+
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
-[project]
-name = "utdl"            # any name you like
-version = "0.0.1"
-
-[tool.setuptools]
-package-dir = {"" = "."}
-
-# Either explicitly list packages:
-packages = ["loss", "model", "optimization"]
+[tool.setuptools.packages.find]
+where = ["."]
 
 [tool.ruff]
 line-length = 100
-# Or use include patterns:
-# [tool.setuptools.packages.find]
-# where = ["."]
-# include = ["loss*", "model*", "optimization*"]
-# exclude = ["notebooks*", "data*", "assets*", "experiments*"]
