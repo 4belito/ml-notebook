@@ -1,9 +1,14 @@
 """Kaiming/He initialization methods for neural network weights."""
 
 import math
+from typing import Literal
 
 import torch
 from torch import Tensor
+
+_NoLinearity = Literal[
+    "sigmoid", "tanh", "relu", "leaky_relu", "linear", "conv1d", "conv2d", "conv3d"
+]
 
 
 def _calculate_fan_in_and_fan_out(tensor: Tensor):
@@ -23,8 +28,7 @@ def _calculate_fan_in_and_fan_out(tensor: Tensor):
     return fan_in, fan_out
 
 
-def calculate_gain(nonlinearity: str, a: float = 0.0):
-    nonlinearity = nonlinearity.lower()
+def calculate_gain(nonlinearity: _NoLinearity, a: float = 0.0):
     match nonlinearity:
         case "sigmoid" | "linear" | "conv1d" | "conv2d" | "conv3d":
             return 1.0
@@ -79,7 +83,7 @@ def xavier_normal_(tensor: Tensor, gain: float = 1.0):
 
 
 def kaiming_uniform_(
-    tensor: Tensor, a: float = 0.0, mode: str = "fan_in", nonlinearity: str = "leaky_relu"
+    tensor: Tensor, a: float = 0.0, mode: str = "fan_in", nonlinearity: _NoLinearity = "leaky_relu"
 ):
     """
     Fills the input `tensor` with values drawn from U(-bound, bound)
