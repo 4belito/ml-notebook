@@ -5,6 +5,54 @@ import torch
 from torch import Tensor, nn
 
 
+class SelfAttention(nn.Module):
+    def __init__(
+        self,
+        mbed_dim: int,
+        num_heades: int,
+        dropout: float = 0.0,
+        bias: bool = True,
+        add_bias_kv: bool = False,
+        add_zero_attn: bool = False,
+        kdim: int | None = None,
+        vdim: int | None = None,
+        batch_first: bool = False,
+        device: torch.device | None = None,
+        dtype: torch.dtype | None = None,
+    ):
+        super().__init__()
+        self.mha = nn.MultiheadAttention(
+            mbed_dim,
+            num_heades,
+            dropout=dropout,
+            bias=bias,
+            add_bias_kv=add_bias_kv,
+            add_zero_attn=add_zero_attn,
+            kdim=kdim,
+            vdim=vdim,
+            batch_first=batch_first,
+            device=device,
+            dtype=dtype,
+        )
+
+    def forward(
+        self,
+        x: Tensor,
+        attn_mask: Tensor | None = None,
+        key_padding_mask: Tensor | None = None,
+        is_causal: bool = False,
+    ):
+        return self.mha(
+            x,
+            x,
+            x,
+            attn_mask=attn_mask,
+            key_padding_mask=key_padding_mask,
+            need_weights=False,
+            is_causal=is_causal,
+        )[0]
+
+
 class MultiheadAttention(nn.Module):
     """
     Multi-Head Attention module with (general) parameters

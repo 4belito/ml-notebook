@@ -3,7 +3,7 @@ name = "ml-notebook"
 version = "0.1.0"
 description = "A learning-oriented collection of Jupyter notebooks exploring core machine learning concepts from a mathematically grounded, first-principles perspective, with emphasis on theoretical understanding, optimization, information theory, and principled PyTorch implementations."
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.11,<3.12"
 dependencies = [
     "imageio[ffmpeg]>=2.37.2",
     "ipykernel>=7.1.0",
