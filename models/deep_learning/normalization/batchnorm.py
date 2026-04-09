@@ -22,7 +22,7 @@ class BatchNorm1d(nn.Module):
         device: torch.device | None = None,
         dtype: torch.dtype | None = None,
     ):
-        super().__init__()  # type: ignore
+        super().__init__()
         self.eps = eps
         self.momentum = momentum
         self.affine = affine

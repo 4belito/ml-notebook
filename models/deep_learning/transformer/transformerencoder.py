@@ -23,7 +23,7 @@ class SelfAttention(nn.Module):
         device: torch.device | None = None,
         dtype: torch.dtype | None = None,
     ):
-        super().__init__()  # type: ignore
+        super().__init__()
         self.mha = nn.MultiheadAttention(
             mbed_dim,
             num_heades,
@@ -36,7 +36,7 @@ class SelfAttention(nn.Module):
             batch_first=batch_first,
             device=device,
             dtype=dtype,
-        )  # type: ignore
+        )
 
     def forward(
         self,
@@ -71,7 +71,7 @@ class TransformerEncoderLayer(nn.Module):
         device: torch.device | None = None,
         dtype: torch.dtype | None = None,
     ):
-        super().__init__()  # type: ignore
+        super().__init__()
         if activation == "relu":
             self.activation = nn.ReLU()
         elif activation == "gelu":
@@ -116,7 +116,7 @@ class TransformerEncoder(nn.Module):
     def __init__(
         self, encoder_layer: TransformerEncoderLayer, num_layers: int, norm: nn.LayerNorm | None
     ):
-        super().__init__()  # type: ignore
+        super().__init__()
         self.network = nn.Sequential(*[encoder_layer for _ in range(num_layers)])
         self.norm = norm
 

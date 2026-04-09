@@ -23,7 +23,7 @@ class RMSProp(Optimizer):
         # Parent class creates param_groups and self.state
         super().__init__(params, defaults)
 
-    @torch.no_grad()  # type: ignore
+    @torch.no_grad()
     def step(self):  # type: ignore
         """Performs a single AdaGrad update step."""
         for group in self.param_groups:

@@ -4,9 +4,6 @@ from typing import Iterable
 
 import torch
 from torch.optim.optimizer import Optimizer
-from typing import Iterable
-
-Params = torch.Tensor | Iterable[torch.Tensor] | Iterable[dict[str, Iterable[torch.Tensor]]]
 
 
 class SGD(Optimizer):
@@ -34,7 +31,7 @@ class SGD(Optimizer):
         )
         super().__init__(params, defaults)
 
-    @torch.no_grad()  # type: ignore
+    @torch.no_grad()
     def step(self):  # type: ignore
         for group in self.param_groups:
             lr = group["lr"]  # η

@@ -19,7 +19,7 @@ class LayerNorm(nn.Module):
         eps: float = 1e-5,
         elementwise_affine: bool = True,
     ):
-        super().__init__()  # type: ignore
+        super().__init__()
         if isinstance(normalized_shape, int):
             normalized_shape = (normalized_shape,)
         self.normalized_shape = normalized_shape

@@ -32,7 +32,7 @@ class MultiheadAttention(nn.Module):
         device: torch.device | None = None,
         dtype: torch.dtype | None = None,
     ):
-        super().__init__()  # type: ignore
+        super().__init__()
         assert dk % h == 0, "dk must be divisible by h"
         self.cq = cq
         self.ck = ck

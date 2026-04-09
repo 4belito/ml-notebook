@@ -9,7 +9,7 @@ class Dropout(nn.Module):
         """
         p: drop probability (0 <= p < 1)
         """
-        super().__init__()  # type: ignore
+        super().__init__()
         assert 0.0 <= p < 1.0, "p must be in [0, 1)"
         self.p = p
         self.keep_prob = 1.0 - self.p

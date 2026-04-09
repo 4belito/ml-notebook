@@ -29,7 +29,7 @@ class Adam(Optimizer):
         defaults = dict(lr=lr, betas=betas, eps=eps, weight_decay=weight_decay)
         super().__init__(params, defaults)
 
-    @torch.no_grad()  # type: ignore
+    @torch.no_grad()
     def step(self):  # type: ignore
         """Performs a single Adam update step."""
         for group in self.param_groups:

@@ -40,7 +40,7 @@ class RProp(Optimizer):
         defaults = dict(lr=lr, etas=etas, step_sizes=step_sizes)
         super().__init__(params, defaults)
 
-    @torch.no_grad()  # type: ignore
+    @torch.no_grad()
     def step(self):  # type: ignore
         """Perform a single RProp update (no closure, returns None)."""
         for group in self.param_groups:

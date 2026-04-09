@@ -11,7 +11,7 @@ class ReLU(nn.Module):
 
 class LeakyReLU(nn.Module):
     def __init__(self, negative_slope: float = 0.01):
-        super().__init__()  # type: ignore
+        super().__init__()
         self.negative_slope = negative_slope
 
     def forward(self, x: Tensor) -> Tensor:
@@ -20,7 +20,7 @@ class LeakyReLU(nn.Module):
 
 class PReLU(nn.Module):
     def __init__(self, init: float = 0.25):
-        super().__init__()  # type: ignore
+        super().__init__()
         a = torch.empty(1)
         self.weight = nn.Parameter(a)
         nn.init.constant_(a, init)
@@ -31,7 +31,7 @@ class PReLU(nn.Module):
 
 class ELU(nn.Module):
     def __init__(self, alpha: float = 1.0):
-        super().__init__()  # type: ignore
+        super().__init__()
         self.alpha = alpha
 
     def forward(self, x: Tensor) -> Tensor:
@@ -40,7 +40,7 @@ class ELU(nn.Module):
 
 class SELU(nn.Module):
     def __init__(self):
-        super().__init__()  # type: ignore
+        super().__init__()
         self.alpha = 1.6732632423543772
         self.scale = 1.0507009873554805
 
