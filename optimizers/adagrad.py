@@ -1,7 +1,8 @@
+from typing import Iterable
+
 import torch
 from torch import nn
 from torch.optim.optimizer import Optimizer
-from typing import Iterable
 
 
 class Adagrad(Optimizer):
