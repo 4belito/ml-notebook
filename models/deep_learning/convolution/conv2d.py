@@ -3,7 +3,8 @@
 import math
 
 import torch
-import torch.nn as nn
+from torch import Tensor, nn
+from torch.nn import Parameter
 
 
 class Conv2d(nn.Module):
@@ -14,17 +15,16 @@ class Conv2d(nn.Module):
 
     def __init__(
         self,
-        in_channels,
-        out_channels,
-        kernel_size,
-        stride=1,
-        padding=0,
-        bias=True,
-        device=None,
-        dtype=None,
-    ):
-        super().__init__()
-        factory_kwargs = {"device": device, "dtype": dtype}
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int | tuple[int, int],
+        stride: int | tuple[int, int] = 1,
+        padding: int | tuple[int, int] = 0,
+        bias: bool = True,
+        device: torch.device | None = None,
+        dtype: torch.dtype | None = None,
+    ) -> None:
+        super().__init__()  # type: ignore
 
         # Normalize tuple inputs
         if isinstance(kernel_size, int):
@@ -39,12 +39,12 @@ class Conv2d(nn.Module):
         self.kernel_size = kernel_size
         self.stride = stride
         self.padding = padding
-
+        self.bias: Parameter | None
         # Learnable parameters
         weight_shape = (out_channels, in_channels, *kernel_size)
-        self.weight = nn.Parameter(torch.empty(weight_shape, **factory_kwargs))
+        self.weight = nn.Parameter(torch.empty(weight_shape, device=device, dtype=dtype))
         if bias:
-            self.bias = nn.Parameter(torch.empty(out_channels, **factory_kwargs))
+            self.bias = nn.Parameter(torch.empty(out_channels, device=device, dtype=dtype))
         else:
             self.register_parameter("bias", None)
 
@@ -56,8 +56,8 @@ class Conv2d(nn.Module):
             bound = 1 / math.sqrt(fan_in)
             nn.init.uniform_(self.bias, -bound, bound)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        N, C, H, W = x.shape
+    def forward(self, x: Tensor) -> Tensor:
+        N, _, H, W = x.shape
         h, w = self.kernel_size
         sH, sW = self.stride
         pH, pW = self.padding

@@ -1,9 +1,9 @@
 """Implementation of a linear (fully connected) layer."""
 
 import math
-
 import torch
-import torch.nn as nn
+from torch import Tensor, nn
+from typing import Literal
 
 
 class Linear(nn.Module):
@@ -14,10 +14,10 @@ class Linear(nn.Module):
         bias: bool = True,
         device: torch.device | str | None = None,
         dtype: torch.dtype | None = None,
-        init_activation: str | None = None,
+        init_activation: Literal["relu", "leaky_relu", "tanh", "sigmoid"] | None = None,
         init_a: float = 0.0,
     ):
-        super().__init__()
+        super().__init__()  # type: ignore
         W = torch.empty(output_dim, input_dim, device=device, dtype=dtype)
         self.weight = nn.Parameter(W)
         match init_activation:
@@ -37,14 +37,14 @@ class Linear(nn.Module):
         if bias:
             b = torch.empty(output_dim, device=device, dtype=dtype)
             self.bias = nn.Parameter(b)
-            fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self.weight)
+            fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self.weight)  # type: ignore
             bound = 1 / math.sqrt(fan_in)
             nn.init.uniform_(self.bias, -bound, bound)
         else:
             self.register_parameter("bias", None)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: Tensor) -> Tensor:
         out = x @ self.weight.T
-        if self.bias is not None:
+        if self.bias:
             out += self.bias
         return out

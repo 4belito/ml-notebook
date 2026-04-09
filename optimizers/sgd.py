@@ -4,6 +4,7 @@ from typing import Iterable
 
 import torch
 from torch.optim.optimizer import Optimizer
+from typing import Iterable
 
 Params = torch.Tensor | Iterable[torch.Tensor] | Iterable[dict[str, Iterable[torch.Tensor]]]
 
@@ -11,7 +12,7 @@ Params = torch.Tensor | Iterable[torch.Tensor] | Iterable[dict[str, Iterable[tor
 class SGD(Optimizer):
     def __init__(
         self,
-        params,
+        params: Iterable[torch.nn.Parameter],
         lr: float,
         momentum: float = 0.0,
         dampening: float = 0.0,
@@ -33,8 +34,8 @@ class SGD(Optimizer):
         )
         super().__init__(params, defaults)
 
-    @torch.no_grad()
-    def step(self):
+    @torch.no_grad()  # type: ignore
+    def step(self):  # type: ignore
         for group in self.param_groups:
             lr = group["lr"]  # η
             mu = group["momentum"]  # μ

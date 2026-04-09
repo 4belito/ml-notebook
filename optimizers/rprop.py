@@ -1,5 +1,6 @@
 import torch
 from torch.optim import Optimizer
+from typing import Iterable
 
 
 class RProp(Optimizer):
@@ -22,7 +23,7 @@ class RProp(Optimizer):
 
     def __init__(
         self,
-        params,
+        params: Iterable[torch.nn.Parameter],
         lr: float = 1e-2,
         etas: tuple[float, float] = (0.5, 1.2),
         step_sizes: tuple[float, float] = (1e-6, 50.0),
@@ -39,8 +40,8 @@ class RProp(Optimizer):
         defaults = dict(lr=lr, etas=etas, step_sizes=step_sizes)
         super().__init__(params, defaults)
 
-    @torch.no_grad()
-    def step(self):
+    @torch.no_grad()  # type: ignore
+    def step(self):  # type: ignore
         """Perform a single RProp update (no closure, returns None)."""
         for group in self.param_groups:
             lr = group["lr"]

@@ -13,11 +13,28 @@ Design goal: readable, scikit-learn-like behavior for teaching.
 from __future__ import annotations
 
 from dataclasses import dataclass
-
 import numpy as np
+from typing import TypeVar, Generic
+
+T = TypeVar("T")  # leaf value type
 
 
-class _BaseDecisionTree:
+@dataclass(slots=True)
+class _Node(Generic[T]):
+    # structure
+    is_leaf: bool
+    feature: int | None = None
+    threshold: float | None = None
+    left: _Node[T] | None = None
+    right: _Node[T] | None = None
+    # stats
+    n: int = 0
+    impurity: float = 0.0
+    # leaf prediction (type depends on task: ndarray for clf, float for reg)
+    value: T | None = None
+
+
+class _BaseDecisionTree(Generic[T]):
     """
     Common CART machinery shared by classifier and regressor.
 
@@ -26,20 +43,6 @@ class _BaseDecisionTree:
       - _impurity(y): impurity for a node
       - _is_pure(y): whether node is pure (optional override)
     """
-
-    @dataclass(slots=True)
-    class _Node:
-        # structure
-        is_leaf: bool
-        feature: int | None = None
-        threshold: float | None = None
-        left: "_BaseDecisionTree._Node | None" = None
-        right: "_BaseDecisionTree._Node | None" = None
-        # stats
-        n: int = 0
-        impurity: float = 0.0
-        # leaf prediction (type depends on task: ndarray for clf, float for reg)
-        value: object | None = None
 
     def __init__(
         self,
@@ -55,7 +58,7 @@ class _BaseDecisionTree:
     # -------------------------
     # Hooks for subclasses
     # -------------------------
-    def _node_value(self, y: np.ndarray):
+    def _node_value(self, y: np.ndarray) -> T:
         raise NotImplementedError
 
     def _impurity(self, y: np.ndarray) -> float:
@@ -117,8 +120,8 @@ class _BaseDecisionTree:
     # -------------------------
     # Tree growth (recursive)
     # -------------------------
-    def _build(self, X: np.ndarray, y: np.ndarray, depth: int) -> _Node:
-        node = self._Node(
+    def _build(self, X: np.ndarray, y: np.ndarray, depth: int) -> _Node[T]:
+        node = _Node[T](
             is_leaf=False,
             n=int(y.size),
             impurity=float(self._impurity(y)),
@@ -152,9 +155,13 @@ class _BaseDecisionTree:
     # -------------------------
     # Traversal utilities
     # -------------------------
-    def _apply_one(self, x: np.ndarray, node: _Node) -> object:
+    def _apply_one(self, x: np.ndarray, node: _Node[T]) -> T:
         while not node.is_leaf:
+            assert node.left is not None and node.right is not None, (
+                "Non-leaf nodes must have children"
+            )
             node = node.left if x[node.feature] <= node.threshold else node.right
+        assert node.value is not None, "Leaf node should have a value"
         return node.value
 
     def _check_fitted(self) -> None:
@@ -162,7 +169,7 @@ class _BaseDecisionTree:
             raise ValueError("This tree is not fitted yet. Call fit(X, y) first.")
 
 
-class DecisionTreeClassifier(_BaseDecisionTree):
+class DecisionTreeClassifier(_BaseDecisionTree[np.ndarray]):
     """
     CART-style Decision Tree Classifier (binary splits).
 
@@ -222,27 +229,27 @@ class DecisionTreeClassifier(_BaseDecisionTree):
         return int(np.count_nonzero(c)) <= 1
 
     # ---- public API ----
-    def fit(self, X: np.ndarray, y: np.ndarray) -> "DecisionTreeClassifier":
-        X = np.asarray(X, float)
+    def fit(self, x: np.ndarray, y: np.ndarray) -> DecisionTreeClassifier:
+        x = np.asarray(x, float)
 
         # encode labels to 0..K-1 for bincount
         self.classes_, y_enc = np.unique(y, return_inverse=True)
         self.n_classes_ = len(self.classes_)
 
-        self.tree_ = self._build(X, y_enc, depth=0)
+        self.tree_ = self._build(x, y_enc, depth=0)
         return self
 
-    def predict_proba(self, X: np.ndarray) -> np.ndarray:
+    def predict_proba(self, x: np.ndarray) -> np.ndarray:
         self._check_fitted()
-        X = np.asarray(X, float)
-        return np.vstack([self._apply_one(x, self.tree_) for x in X])
+        x = np.asarray(x, float)
+        return np.vstack([self._apply_one(v, self.tree_) for v in x])
 
-    def predict(self, X: np.ndarray) -> np.ndarray:
-        proba = self.predict_proba(X)
+    def predict(self, x: np.ndarray) -> np.ndarray:
+        proba = self.predict_proba(x)
         return self.classes_[np.argmax(proba, axis=1)]
 
 
-class DecisionTreeRegressor(_BaseDecisionTree):
+class DecisionTreeRegressor(_BaseDecisionTree[float]):
     """
     CART-style Decision Tree Regressor (binary splits).
 

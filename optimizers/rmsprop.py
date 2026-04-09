@@ -1,9 +1,18 @@
 import torch
 from torch.optim.optimizer import Optimizer
+from typing import Iterable
 
 
 class RMSProp(Optimizer):
-    def __init__(self, params, lr=1e-3, alpha=0.99, eps=1e-8, weight_decay=0.0, momentum=0.0):
+    def __init__(
+        self,
+        params: Iterable[torch.nn.Parameter],
+        lr: float = 1e-3,
+        alpha: float = 0.99,
+        eps: float = 1e-8,
+        weight_decay: float = 0.0,
+        momentum: float = 0.0,
+    ):
         defaults = {
             "lr": lr,
             "eps": eps,
@@ -14,8 +23,8 @@ class RMSProp(Optimizer):
         # Parent class creates param_groups and self.state
         super().__init__(params, defaults)
 
-    @torch.no_grad()
-    def step(self):
+    @torch.no_grad()  # type: ignore
+    def step(self):  # type: ignore
         """Performs a single AdaGrad update step."""
         for group in self.param_groups:
             lr = group["lr"]

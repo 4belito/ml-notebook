@@ -3,9 +3,10 @@
 import math
 
 import torch
+from torch import Tensor
 
 
-def _calculate_fan_in_and_fan_out(tensor: torch.Tensor):
+def _calculate_fan_in_and_fan_out(tensor: Tensor):
     """Calculates the fan-in and fan-out for a given tensor."""
     dimensions = tensor.dim()
     if dimensions < 2:
@@ -37,7 +38,7 @@ def calculate_gain(nonlinearity: str, a: float = 0.0):
             raise ValueError(f"Unsupported nonlinearity {nonlinearity}")
 
 
-def xavier_uniform_(tensor: torch.Tensor, gain: float = 1.0):
+def xavier_uniform_(tensor: Tensor, gain: float = 1.0):
     """
     Fills the input `tensor` with values drawn from U(-bound, bound)
     according to Xavier/Glorot uniform initialization.
@@ -57,7 +58,7 @@ def xavier_uniform_(tensor: torch.Tensor, gain: float = 1.0):
         return tensor.uniform_(-bound, bound)
 
 
-def xavier_normal_(tensor: torch.Tensor, gain: float = 1.0):
+def xavier_normal_(tensor: Tensor, gain: float = 1.0):
     """
     Fills the input `tensor` with values drawn from N(0, std^2)
     according to Xavier/Glorot normal initialization.
@@ -78,7 +79,7 @@ def xavier_normal_(tensor: torch.Tensor, gain: float = 1.0):
 
 
 def kaiming_uniform_(
-    tensor: torch.Tensor, a: float = 0.0, mode: str = "fan_in", nonlinearity: str = "leaky_relu"
+    tensor: Tensor, a: float = 0.0, mode: str = "fan_in", nonlinearity: str = "leaky_relu"
 ):
     """
     Fills the input `tensor` with values drawn from U(-bound, bound)

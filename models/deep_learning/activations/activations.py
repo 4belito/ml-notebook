@@ -1,55 +1,55 @@
 """Activation Functions implemented in PyTorch."""
 
 import torch
-import torch.nn as nn
+from torch import Tensor, nn
 
 
 class ReLU(nn.Module):
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: Tensor) -> Tensor:
         return torch.clamp(x, min=0)
 
 
 class LeakyReLU(nn.Module):
     def __init__(self, negative_slope: float = 0.01):
-        super().__init__()
+        super().__init__()  # type: ignore
         self.negative_slope = negative_slope
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: Tensor) -> Tensor:
         return torch.where(x > 0, x, self.negative_slope * x)
 
 
 class PReLU(nn.Module):
     def __init__(self, init: float = 0.25):
-        super().__init__()
+        super().__init__()  # type: ignore
         a = torch.empty(1)
         self.weight = nn.Parameter(a)
         nn.init.constant_(a, init)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: Tensor) -> Tensor:
         return torch.where(x > 0, x, self.weight * x)
 
 
 class ELU(nn.Module):
     def __init__(self, alpha: float = 1.0):
-        super().__init__()
+        super().__init__()  # type: ignore
         self.alpha = alpha
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: Tensor) -> Tensor:
         return torch.where(x > 0, x, self.alpha * (torch.exp(x) - 1))
 
 
 class SELU(nn.Module):
     def __init__(self):
-        super().__init__()
+        super().__init__()  # type: ignore
         self.alpha = 1.6732632423543772
         self.scale = 1.0507009873554805
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: Tensor) -> Tensor:
         return self.scale * torch.where(x > 0, x, self.alpha * (torch.exp(x) - 1))
 
 
 class GELU(nn.Module):
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: Tensor) -> Tensor:
         return (
             0.5
             * x
@@ -63,10 +63,10 @@ class GELU(nn.Module):
 
 
 class Sigmoid(nn.Module):
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: Tensor) -> Tensor:
         return 1 / (1 + torch.exp(-x))
 
 
 class Tanh(nn.Module):
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: Tensor) -> Tensor:
         return (torch.exp(x) - torch.exp(-x)) / (torch.exp(x) + torch.exp(-x))

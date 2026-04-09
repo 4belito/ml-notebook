@@ -1,7 +1,7 @@
 """Layer Normalization module."""
 
 import torch
-import torch.nn as nn
+from torch import Tensor, nn
 
 
 class LayerNorm(nn.Module):
@@ -13,8 +13,13 @@ class LayerNorm(nn.Module):
     optimizations.
     """
 
-    def __init__(self, normalized_shape, eps=1e-5, elementwise_affine=True):
-        super().__init__()
+    def __init__(
+        self,
+        normalized_shape: int | tuple[int, ...],
+        eps: float = 1e-5,
+        elementwise_affine: bool = True,
+    ):
+        super().__init__()  # type: ignore
         if isinstance(normalized_shape, int):
             normalized_shape = (normalized_shape,)
         self.normalized_shape = normalized_shape
@@ -28,7 +33,7 @@ class LayerNorm(nn.Module):
             self.register_parameter("weight", None)
             self.register_parameter("bias", None)
 
-    def forward(self, x):
+    def forward(self, x: Tensor) -> Tensor:
         # Compute mean and variance over last normalized_dims
         dim = tuple(range(x.dim() - self.normalized_dim, x.dim()))
         mean = x.mean(dim=dim, keepdim=True)

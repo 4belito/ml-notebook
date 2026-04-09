@@ -1,5 +1,6 @@
 import torch
 from torch.optim.optimizer import Optimizer
+from typing import Iterable
 
 
 class AdamW(Optimizer):
@@ -9,7 +10,7 @@ class AdamW(Optimizer):
 
     def __init__(
         self,
-        params,
+        params: Iterable[torch.nn.Parameter],
         lr: float = 1e-3,
         betas: tuple[float, float] = (0.9, 0.999),
         eps: float = 1e-8,
@@ -28,8 +29,8 @@ class AdamW(Optimizer):
         defaults = dict(lr=lr, betas=betas, eps=eps, weight_decay=weight_decay)
         super().__init__(params, defaults)
 
-    @torch.no_grad()
-    def step(self):
+    @torch.no_grad()  # type: ignore
+    def step(self):  # type: ignore
         """Performs a single Adam update step."""
         for group in self.param_groups:
             lr = group["lr"]

@@ -1,7 +1,7 @@
 """Batch Normalization Layer Implementation."""
 
 import torch
-import torch.nn as nn
+from torch import Tensor, nn
 
 
 class BatchNorm1d(nn.Module):
@@ -13,8 +13,16 @@ class BatchNorm1d(nn.Module):
 
     """
 
-    def __init__(self, num_features, eps=1e-5, momentum=0.1, affine=True, device=None, dtype=None):
-        super().__init__()
+    def __init__(
+        self,
+        num_features: int,
+        eps: float = 1e-5,
+        momentum: float = 0.1,
+        affine: bool = True,
+        device: torch.device | None = None,
+        dtype: torch.dtype | None = None,
+    ):
+        super().__init__()  # type: ignore
         self.eps = eps
         self.momentum = momentum
         self.affine = affine
@@ -33,7 +41,7 @@ class BatchNorm1d(nn.Module):
         self.register_buffer("running_var", torch.ones(num_features))
         self.register_buffer("num_batches_tracked", torch.tensor(0, dtype=torch.long))
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: Tensor) -> Tensor:
         # train/eval mode handling (initialized in the parent class nn.Module)
         if self.training:
             # Step 1: Compute batch statistics

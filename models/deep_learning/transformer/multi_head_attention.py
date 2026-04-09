@@ -2,9 +2,10 @@
 
 import einops
 import torch
+from torch import Tensor, nn
 
 
-class MultiHeadAttention(torch.nn.Module):
+class MultiheadAttention(nn.Module):
     """
     Multi-Head Attention module with (general) parameters
     cq, ck, cv: input dimensions for Q, K, V
@@ -18,9 +19,20 @@ class MultiHeadAttention(torch.nn.Module):
     """
 
     def __init__(
-        self, cq, ck, cv, dk, dv, do, h, bias=True, add_bias_kv=False, device=None, dtype=None
+        self,
+        cq: int,
+        ck: int,
+        cv: int,
+        dk: int,
+        dv: int,
+        do: int,
+        h: int,
+        bias: bool = True,
+        add_bias_kv: bool = False,
+        device: torch.device | None = None,
+        dtype: torch.dtype | None = None,
     ):
-        super().__init__()
+        super().__init__()  # type: ignore
         assert dk % h == 0, "dk must be divisible by h"
         self.cq = cq
         self.ck = ck
@@ -32,28 +44,34 @@ class MultiHeadAttention(torch.nn.Module):
         self.add_bias_kv = add_bias_kv
         self.device = device
         self.dtype = dtype
-        # Q -> QW_q+B_q
-        self.q_proj = torch.nn.Linear(cq, dk * h, bias, self.device, self.dtype)
-        # K -> KW_k+B_k
-        self.k_proj = torch.nn.Linear(ck, dk * h, bias, self.device, self.dtype)
-        # V -> VW_v+B_v
-        self.v_proj = torch.nn.Linear(cv, dv * h, bias, self.device, self.dtype)
+        # Q -> QW_q+1_Mb^T_q
+        self.q_proj = nn.Linear(cq, dk * h, bias, self.device, self.dtype)
+        # K -> KW_k+1_Mb^T_k
+        self.k_proj = nn.Linear(ck, dk * h, bias, self.device, self.dtype)
+        # V -> VW_v+1_Mb^T_v
+        self.v_proj = nn.Linear(cv, dv * h, bias, self.device, self.dtype)
 
-        self.out_proj = torch.nn.Linear(dv * h, do, bias, self.device, self.dtype)
+        self.out_proj = nn.Linear(dv * h, do, bias, self.device, self.dtype)
         if self.add_bias_kv:
-            self.bias_k = torch.nn.Parameter(
+            self.bias_k = nn.Parameter(
                 torch.zeros(1, 1, dk * h, device=self.device, dtype=self.dtype)
             )
-            self.bias_v = torch.nn.Parameter(
+            self.bias_v = nn.Parameter(
                 torch.zeros(1, 1, dv * h, device=self.device, dtype=self.dtype)
             )
 
-    def forward(self, Q, K, V):
+    def forward(
+        self,
+        Q: Tensor,
+        K: Tensor,
+        V: Tensor,
+        attn_mask: Tensor | None = None,
+    ):
         """Forward pass of the MHA module."""
         # Linear projections
-        proj_q = self.q_proj(Q)  # Q=QW_q+B_q
-        proj_k = self.k_proj(K)  # K=KW_k+B_k
-        proj_v = self.v_proj(V)  # V=VW_v+B_v
+        proj_q = self.q_proj(Q)  # Q=QW_q+1_Mb^T_q
+        proj_k = self.k_proj(K)  # K=KW_k+1_Mb^T_k
+        proj_v = self.v_proj(V)  # V=VW_v+1_Mb^T_v
         if self.add_bias_kv:
             # append bias to the key and value sequences
             batch_size = proj_k.shape[0]
@@ -67,10 +85,20 @@ class MultiHeadAttention(torch.nn.Module):
 
         # QK^T
         scores = torch.einsum("bhmd, bhnd -> bhmn", r_q, r_k)
+        if attn_mask is not None:
+            match attn_mask.dim():
+                case 2:
+                    attn_mask = attn_mask.unsqueeze(0).unsqueeze(0)
+                case 3:
+                    attn_mask = einops.rearrange(attn_mask, "(b h) m n -> b h m n", h=self.h)
+                case 4:
+                    pass
+                case _:
+                    raise ValueError("attn_mask has incorrect dimensions")
+            scores += attn_mask
 
         # softmax(QK^T/sqrt(dk))
-
-        attn = torch.nn.functional.softmax(scores / (self.dk**0.5), dim=-1)
+        attn = nn.functional.softmax(scores / (self.dk**0.5), dim=-1)
 
         # softmax(QK^T/sqrt(dk))V
         o = torch.einsum("bhmn, bhnv -> bhmv", attn, r_v)

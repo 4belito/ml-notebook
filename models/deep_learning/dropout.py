@@ -1,7 +1,7 @@
 """Dropout Module Implementation"""
 
 import torch
-import torch.nn as nn
+from torch import nn, Tensor
 
 
 class Dropout(nn.Module):
@@ -9,12 +9,12 @@ class Dropout(nn.Module):
         """
         p: drop probability (0 <= p < 1)
         """
-        super().__init__()
+        super().__init__()  # type: ignore
         assert 0.0 <= p < 1.0, "p must be in [0, 1)"
         self.p = p
         self.keep_prob = 1.0 - self.p
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: Tensor) -> Tensor:
         # If we are in eval mode, dropout does nothing
         if not self.training or self.p == 0.0:
             return x

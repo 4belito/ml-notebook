@@ -1,13 +1,13 @@
 """Custom Embedding Layer Implementation."""
 
 import torch
-import torch.nn as nn
+from torch import Tensor, nn
 
 
 class Embedding(nn.Module):
     def __init__(self, num_embeddings: int, embedding_dim: int):
-        super().__init__()
+        super().__init__()  # type: ignore
         self.weight = nn.Parameter(torch.randn(num_embeddings, embedding_dim))
 
-    def forward(self, input_indices: torch.Tensor):
+    def forward(self, input_indices: Tensor):
         return self.weight[input_indices]
