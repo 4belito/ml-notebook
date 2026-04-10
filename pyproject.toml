@@ -26,3 +26,4 @@ where = ["."]
 
 [tool.ruff]
 line-length = 100
+

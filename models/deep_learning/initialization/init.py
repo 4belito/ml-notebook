@@ -48,7 +48,8 @@ def xavier_uniform_(tensor: Tensor, gain: float = 1.0):
     according to Xavier/Glorot uniform initialization.
 
     Reference:
-    Glorot & Bengio (2010), "Understanding the difficulty of training deep feedforward neural networks".
+    Glorot & Bengio (2010), "Understanding the difficulty of training deep feedforward neural
+    networks".
     """
 
     # 1) Compute fan_in and fan_out
@@ -68,7 +69,8 @@ def xavier_normal_(tensor: Tensor, gain: float = 1.0):
     according to Xavier/Glorot normal initialization.
 
     Reference:
-    Glorot & Bengio (2010), "Understanding the difficulty of training deep feedforward neural networks".
+    Glorot & Bengio (2010), "Understanding the difficulty of training deep feedforward neural
+    networks".
     """
 
     # 1) Compute fan_in and fan_out

@@ -1,9 +1,10 @@
 """Implementation of a linear (fully connected) layer."""
 
 import math
+from typing import Literal
+
 import torch
 from torch import Tensor, nn
-from typing import Literal
 
 
 class Linear(nn.Module):

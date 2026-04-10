@@ -13,8 +13,9 @@ Design goal: readable, scikit-learn-like behavior for teaching.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Generic, TypeVar
+
 import numpy as np
-from typing import TypeVar, Generic
 
 T = TypeVar("T")  # leaf value type
 
@@ -287,7 +288,7 @@ class DecisionTreeRegressor(_BaseDecisionTree[float]):
         return float(np.mean((y - mu) ** 2))
 
     # ---- public API ----
-    def fit(self, X: np.ndarray, y: np.ndarray) -> "DecisionTreeRegressor":
+    def fit(self, X: np.ndarray, y: np.ndarray) -> DecisionTreeRegressor:
         y = y.reshape(-1)  # continuous targets
         self.tree_ = self._build(X, y, depth=0)
         return self

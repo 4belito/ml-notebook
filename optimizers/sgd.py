@@ -1,6 +1,6 @@
 """Stochastic Gradient Descent (SGD) Optimizer Implementation."""
 
-from typing import Iterable
+from collections.abc import Iterable
 
 import torch
 from torch.optim.optimizer import Optimizer
@@ -22,13 +22,13 @@ class SGD(Optimizer):
             # this is also what PyTorch enforces
             raise ValueError("Nesterov is used with dampening = 0.")
 
-        defaults = dict(
-            lr=lr,
-            momentum=momentum,
-            dampening=dampening,
-            weight_decay=weight_decay,
-            nesterov=nesterov,
-        )
+        defaults = {
+            "lr": lr,
+            "momentum": momentum,
+            "dampening": dampening,
+            "weight_decay": weight_decay,
+            "nesterov": nesterov,
+        }
         super().__init__(params, defaults)
 
     @torch.no_grad()
@@ -64,12 +64,9 @@ class SGD(Optimizer):
                     state["velocity"] = v
 
                     # ---- 3) Compute direction d_t ----
-                    if nesterov:
-                        # d_t = g_t + μ v_{t+1}
-                        d_p = grad.add(v, alpha=mu)
-                    else:
-                        # d_t = v_{t+1}
-                        d_p = v
+                    # nesterov: d_t = g_t + μ v_{t+1}
+                    # no nesterov:  d_t = v_{t+1}
+                    d_p = grad.add(v, alpha=mu) if nesterov else v
                 else:
                     # No momentum: direction is just (optionally decayed) gradient
                     d_p = grad

@@ -1,22 +1,17 @@
-import math
-
 import torch
 from torch import Tensor, nn
 
 
 class FourierPositionalEncoding(nn.Module):
-    """Multi-dimensional separable Fourier Encoding (with Transformerstyle frequency scaling)"""
+    """Multi-dimensional separable Fourier Encoding embeding dimension is 2 * self.ndim"""
 
-    def __init__(self, embed_dim: int, ndim: int = 1, base: float = 10000.0):
+    def __init__(self, freq: Tensor, ndim: int = 1):
         super().__init__()
-        assert embed_dim % (2 * ndim) == 0, (
-            "Embedding dimension must be divisible by 2 * number of dimensions"
-        )
         self.ndim = ndim
-        half_dim = embed_dim // (2 * self.ndim)
+        # half_dim = freq.shape[0]
         # Frequencies (Transformer-style scaling)
         # freq[i] = base^(-i/dim) for i in range(half_dim)
-        freq = torch.exp(-math.log(base) * torch.arange(half_dim) / half_dim)
+        # freq = torch.exp(-math.log(base) * torch.arange(half_dim) / half_dim)
         self.freq: Tensor
         self.register_buffer("freq", freq)
 

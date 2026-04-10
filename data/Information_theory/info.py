@@ -14,7 +14,7 @@ def artificial_sample(
     values: list[tuple[int, int]], prob: np.ndarray, n_samples: int = 100
 ) -> list[tuple[int, int]]:
     sample = []
-    for val, p in zip(values, prob):
+    for val, p in zip(values, prob, strict=True):
         sample.extend(int(n_samples * p) * [val])
     return sample
 

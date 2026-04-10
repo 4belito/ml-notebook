@@ -6,7 +6,8 @@ from torch import Tensor, nn
 
 class BatchNorm1d(nn.Module):
     """
-    This version is designed for readability and to expose the internal logic of batch normalization (mean/variance computation, normalization, and affine scaling).
+    This version is designed for readability and to expose the internal logic of batch normalization
+    (mean/variance computation, normalization, and affine scaling).
     It behaves similarly to `torch.nn.BatchNorm1d` but may differ slightly in
     numerical values due to floating-point accumulation order and lack of low-level
     optimizations.
@@ -65,9 +66,5 @@ class BatchNorm1d(nn.Module):
         x_normalized = (x - mean) / torch.sqrt(var + self.eps)
 
         # Step 3: Apply affine transformation if enabled
-        if self.affine:
-            output = self.weight * x_normalized + self.bias
-        else:
-            output = x_normalized
-
+        output = self.weight * x_normalized + self.bias if self.affine else x_normalized
         return output

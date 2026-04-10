@@ -5,6 +5,7 @@ Inspired by PyTorch nn.TransformerEncoderLayer
 
 import torch
 from torch import Tensor, nn
+
 from models.deep_learning.components import SelfAttention
 
 

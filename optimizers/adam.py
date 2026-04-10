@@ -1,6 +1,7 @@
+from collections.abc import Iterable
+
 import torch
 from torch.optim.optimizer import Optimizer
-from typing import Iterable
 
 
 class Adam(Optimizer):
@@ -26,7 +27,7 @@ class Adam(Optimizer):
         if weight_decay < 0.0:
             raise ValueError(f"Invalid weight_decay: {weight_decay}")
 
-        defaults = dict(lr=lr, betas=betas, eps=eps, weight_decay=weight_decay)
+        defaults = {"lr": lr, "betas": betas, "eps": eps, "weight_decay": weight_decay}
         super().__init__(params, defaults)
 
     @torch.no_grad()

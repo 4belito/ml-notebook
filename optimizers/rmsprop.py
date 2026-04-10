@@ -1,6 +1,7 @@
+from collections.abc import Iterable
+
 import torch
 from torch.optim.optimizer import Optimizer
-from typing import Iterable
 
 
 class RMSProp(Optimizer):

@@ -1,6 +1,7 @@
+from collections.abc import Iterable
+
 import torch
 from torch.optim import Optimizer
-from typing import Iterable
 
 
 class RProp(Optimizer):
@@ -37,7 +38,7 @@ class RProp(Optimizer):
         if not (step_min > 0.0 and step_max >= step_min):
             raise ValueError(f"Invalid step_sizes: {step_sizes}")
 
-        defaults = dict(lr=lr, etas=etas, step_sizes=step_sizes)
+        defaults = {"lr": lr, "etas": etas, "step_sizes": step_sizes}
         super().__init__(params, defaults)
 
     @torch.no_grad()
