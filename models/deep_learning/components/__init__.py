@@ -1,7 +1,7 @@
 from .activations.activations import ELU, GELU, SELU, LeakyReLU, PReLU, ReLU, Sigmoid, Tanh
 from .attention.attention import MultiheadAttention, SelfAttention
 from .embeddings.embedding import Embedding
-from .embeddings.positional_encoding import SinusoidalPositionalEncoding
+from .embeddings.positional_encoding import FourierPositionalEncoding
 from .linear.linear import Linear
 from .normalization.batchnorm import BatchNorm1d
 from .normalization.layernorm import LayerNorm
@@ -25,5 +25,5 @@ __all__ = [
     "Dropout",
     "Linear",
     "ResidualConnection",
-    "SinusoidalPositionalEncoding",
+    "FourierPositionalEncoding",
 ]

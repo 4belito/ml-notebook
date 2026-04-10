@@ -4,7 +4,9 @@ import torch
 from torch import Tensor, nn
 
 
-class SinusoidalPositionalEncoding(nn.Module):
+class FourierPositionalEncoding(nn.Module):
+    """Multi-dimensional separable Fourier Encoding (with Transformerstyle frequency scaling)"""
+
     def __init__(self, embed_dim: int, ndim: int = 1, base: float = 10000.0):
         super().__init__()
         assert embed_dim % (2 * ndim) == 0, (
