@@ -1,0 +1,67 @@
+
+{
+  // =========================
+  // --- Editor (core UX) ---
+  // =========================
+  "files.autoSave": "onFocusChange", // auto-save when switching tabs
+  "editor.rulers": [100], // visual line length guide
+  "workbench.colorTheme": "Dark Modern",
+
+  // =========================
+  // --- Python formatting ---
+  // =========================
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports.ruff": "explicit" // manual import organization via Ruff
+    }
+  },
+  // Ruff global behavior inside VSCode
+  "ruff.lint.select": ["E", "F", "I", "B", "UP", "SIM", "C4"], // "D"
+  "ruff.organizeImports": true,
+  // Code | Purpose
+  // ---------------------------
+  // E    | Style
+  // F    | Bugs
+  // I    | Imports
+  // B    | Hidden bugs
+  // UP   | Modern Python (modern syntax, best practices)
+  // SIM  | Simplicity (Simplify code)
+  // C4   | Pythonic patterns (comprenhensions, context managers, etc.)
+  
+  // =========================
+  // --- Python type checking 
+  // =========================
+  "python.analysis.typeCheckingMode": "strict",
+
+  // Reduce noise from ML / dynamic libraries
+  "python.analysis.diagnosticSeverityOverrides": {
+    "reportUnknownMemberType": "none",
+    "reportMissingTypeStubs": "none",
+    "reportUntypedFunctionDecorator": "none",
+    "reportUnknownVariableType": "none",
+    "reportUnknownParameterType": "none",
+    "reportUnknownArgumentType": "none",
+    "reportPossiblyUnboundVariable": "none"
+  },
+
+  // =========================
+  // --- Jupyter Notebooks ---
+  // =========================
+  "[notebook]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.codeActionsOnSave": {
+      "source.organizeImports.ruff": "explicit"
+    }
+  },
+  "notebook.formatOnSave.enabled": true, // auto-format notebooks on save
+  "jupyter.askForKernelRestart": false, // manual control of kernel restarts
+  "notebook.lineNumbers": "on",
+
+  // =========================
+  // --- Git ---
+  // =========================
+  "git.enableSmartCommit": true, // commit without staging prompt
+  "git.confirmSync": false, // no confirmation when syncing
+}
