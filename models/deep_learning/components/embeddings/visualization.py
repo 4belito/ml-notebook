@@ -25,18 +25,15 @@ def plot_embeddingdims(x: Tensor, emb: Tensor, title: str, n_col: int = 4):
     plt.show()
 
 
-def plot_embedding(emb: Tensor, title: str):
+def plot_embedding(emb: Tensor, title: str, cmap: str = "RdBu", vmin: float = -1, vmax: float = 1):
     emb_plot = emb.numpy()
-    emb_dim = emb_plot.shape[1]
     plt.figure(figsize=(8, 4))
     plt.imshow(
         emb_plot,
         aspect="auto",
-        extent=(0, emb_plot.shape[0], 0, float(emb_dim)),
-        origin="upper",
-        cmap="RdBu",
-        vmin=-1,
-        vmax=1,
+        cmap=cmap,
+        vmin=vmin,
+        vmax=vmax,
     )
     plt.colorbar(label="Embedding value")
     plt.xlabel("x")
