@@ -1,7 +1,17 @@
-from .activations.activations import ELU, GELU, SELU, LeakyReLU, PReLU, ReLU, Sigmoid, Tanh
+from .activations.activations import (
+    ELU,
+    GELU,
+    SELU,
+    LeakyReLU,
+    PReLU,
+    ReLU,
+    Sigmoid,
+    Tanh,
+)
 from .attention.attention import MultiheadAttention, SelfAttention
 from .embeddings.embedding import Embedding
 from .embeddings.fourier_encoding import FourierPositionalEncoding
+from .embeddings.rope import RotaryEmbedding
 from .embeddings.sinusoidal_pe import SinusoidalPE
 from .linear.linear import Linear
 from .normalization.batchnorm import BatchNorm1d
@@ -28,4 +38,5 @@ __all__ = [
     "ResidualConnection",
     "FourierPositionalEncoding",
     "SinusoidalPE",
+    "RotaryEmbedding",
 ]
