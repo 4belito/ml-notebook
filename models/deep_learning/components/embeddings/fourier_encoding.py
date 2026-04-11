@@ -1,3 +1,5 @@
+import math
+
 import torch
 from torch import Tensor, nn
 
@@ -49,3 +51,14 @@ class FourierPositionalEncoding(nn.Module):
         coords = torch.stack(grids, dim=-1)
 
         return coords
+
+    @staticmethod
+    def transformer_frequency(embed_dim: int, ndim: int = 1, base: int = 10000) -> Tensor:
+        """COmpute frequencies for Transformer-style Fourier Positional Encoding
+        embed_dim: total embedding dimension (must be divisible by 2*ndim)
+        ndim: number of spatial dimensions (e.g. 1 for sequences, 2 for images)
+        base: base for frequency scaling (default 10000)"""
+        assert embed_dim % (2 * ndim) == 0, "Embedding dimension must be divisible by 2*ndim"
+        half_dim = embed_dim // (2 * ndim)
+        freq = torch.exp(-math.log(base) * torch.arange(half_dim) / half_dim)
+        return freq

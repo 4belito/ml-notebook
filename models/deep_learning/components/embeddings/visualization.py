@@ -36,8 +36,8 @@ def plot_embedding(emb: Tensor, title: str, cmap: str = "RdBu", vmin: float = -1
         vmax=vmax,
     )
     plt.colorbar(label="Embedding value")
-    plt.xlabel("x")
-    plt.ylabel("Embedding dimension")
+    plt.xlabel("Embedding dimension")
+    plt.ylabel("Position")
     plt.title(title)
     plt.tight_layout()
     plt.show()
