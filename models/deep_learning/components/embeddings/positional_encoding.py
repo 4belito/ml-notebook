@@ -5,13 +5,8 @@ from torch import Tensor, nn
 class FourierPositionalEncoding(nn.Module):
     """Multi-dimensional separable Fourier Encoding embeding dimension is 2 * self.ndim"""
 
-    def __init__(self, freq: Tensor, ndim: int = 1):
+    def __init__(self, freq: Tensor):
         super().__init__()
-        self.ndim = ndim
-        # half_dim = freq.shape[0]
-        # Frequencies (Transformer-style scaling)
-        # freq[i] = base^(-i/dim) for i in range(half_dim)
-        # freq = torch.exp(-math.log(base) * torch.arange(half_dim) / half_dim)
         self.freq: Tensor
         self.register_buffer("freq", freq)
 
@@ -20,9 +15,6 @@ class FourierPositionalEncoding(nn.Module):
         space_dim: (D1, D2, ..., DN)
         returns: (..., embed_dim)
         """
-        assert len(spatial_dimensions) == self.ndim, (
-            "Input spatial dimensions must match the initialized number of dimensions"
-        )
         x = self.make_coords(
             spatial_dimensions, self.freq.device, sampling_factor=sampling_factor
         )  # (..., D)
