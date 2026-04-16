@@ -9,6 +9,10 @@ from torch import Tensor, nn
 from models.deep_learning.components import SelfAttention
 
 
+# B: batch size
+# H: number of heads
+# S: sequence length
+# D: head dimension
 class TransformerEncoderLayer(nn.Module):
     def __init__(
         self,
@@ -50,8 +54,12 @@ class TransformerEncoderLayer(nn.Module):
             nn.Linear(dim_feedforward, d_model, bias=bias, device=device, dtype=dtype),
             nn.Dropout(dropout),
         )
-        self.norm1 = nn.LayerNorm(d_model, eps=layer_norm_eps, device=device, dtype=dtype)
-        self.norm2 = nn.LayerNorm(d_model, eps=layer_norm_eps, device=device, dtype=dtype)
+        self.norm1 = nn.LayerNorm(
+            d_model, eps=layer_norm_eps, device=device, dtype=dtype
+        )
+        self.norm2 = nn.LayerNorm(
+            d_model, eps=layer_norm_eps, device=device, dtype=dtype
+        )
 
     def forward(self, x: Tensor):
         x = self._skkip_block(x, self.norm1, self.block1)
@@ -67,7 +75,10 @@ class TransformerEncoderLayer(nn.Module):
 
 class TransformerEncoder(nn.Module):
     def __init__(
-        self, encoder_layer: TransformerEncoderLayer, num_layers: int, norm: nn.LayerNorm | None
+        self,
+        encoder_layer: TransformerEncoderLayer,
+        num_layers: int,
+        norm: nn.LayerNorm | None,
     ):
         super().__init__()
         self.network = nn.Sequential(*[encoder_layer for _ in range(num_layers)])

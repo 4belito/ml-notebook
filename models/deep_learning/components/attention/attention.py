@@ -2,10 +2,21 @@
 
 import einops
 import torch
+from jaxtyping import Float
 from torch import Tensor, nn
 
 
 class SelfAttention(nn.Module):
+    """
+    Multi-Head Attention module with (general) parameters
+    b: Batch dimensioin
+    n: sequence length
+    c: input dimensions for Q, K, V
+    dk, dv: dimensions for each head's Q, K and V
+    do: output dimension
+    h: number of heads.
+    """
+
     def __init__(
         self,
         mbed_dim: int,
@@ -37,8 +48,11 @@ class SelfAttention(nn.Module):
 
     def forward(
         self,
-        x: Tensor,
-        attn_mask: Tensor | None = None,
+        x: Float[Tensor, "b n c"],
+        attn_mask: Float[Tensor, "n n"]
+        | Float[Tensor, "(b*h) n n"]
+        | Float[Tensor, "b h n n"]
+        | None = None,
         key_padding_mask: Tensor | None = None,
         is_causal: bool = False,
     ):
@@ -56,6 +70,9 @@ class SelfAttention(nn.Module):
 class MultiheadAttention(nn.Module):
     """
     Multi-Head Attention module with (general) parameters
+    b: Batch dimensioin
+    m: querry sequence length
+    n: key-value sequence length
     cq, ck, cv: input dimensions for Q, K, V
     dk, dv: dimensions for each head's Q, K and V
     do: output dimension
@@ -110,11 +127,14 @@ class MultiheadAttention(nn.Module):
 
     def forward(
         self,
-        Q: Tensor,
-        K: Tensor,
-        V: Tensor,
-        attn_mask: Tensor | None = None,
-    ):
+        Q: Float[Tensor, "b m cq"],
+        K: Float[Tensor, "b n ck"],
+        V: Float[Tensor, "b n cv"],
+        attn_mask: Float[Tensor, "m n"]
+        | Float[Tensor, "(b*h) m n"]
+        | Float[Tensor, "b h m n"]
+        | None = None,
+    ) -> Float[Tensor, "b m do"]:
         """Forward pass of the MHA module."""
         # Linear projections
         proj_q = self.q_proj(Q)  # Q=QW_q+1_Mb^T_q
@@ -138,7 +158,9 @@ class MultiheadAttention(nn.Module):
                 case 2:
                     attn_mask = attn_mask.unsqueeze(0).unsqueeze(0)
                 case 3:
-                    attn_mask = einops.rearrange(attn_mask, "(b h) m n -> b h m n", h=self.h)
+                    attn_mask = einops.rearrange(
+                        attn_mask, "(b h) m n -> b h m n", h=self.h
+                    )
                 case 4:
                     pass
                 case _:
