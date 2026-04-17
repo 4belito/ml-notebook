@@ -1,6 +1,11 @@
-"""Dropout Module Implementation"""
+"""Dropout Module Implementation
+
+Tensor dimensions:
+    ...: arbitrary shape (pass-through)
+"""
 
 import torch
+from jaxtyping import Float
 from torch import Tensor, nn
 
 
@@ -14,7 +19,7 @@ class Dropout(nn.Module):
         self.p = p
         self.keep_prob = 1.0 - self.p
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: Float[Tensor, "..."]) -> Float[Tensor, "..."]:
         # If we are in eval mode, dropout does nothing
         if not self.training or self.p == 0.0:
             return x

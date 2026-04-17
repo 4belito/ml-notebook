@@ -1,7 +1,16 @@
+from jaxtyping import Float
 from torch import Tensor, nn
 
 
 class MLP(nn.Module):
+    """
+    Multi-layer Perceptron.
+
+    Tensor dimensions:
+        b: batch size
+        c: feature dimension
+    """
+
     def __init__(
         self,
         input_dim: int,
@@ -22,5 +31,5 @@ class MLP(nn.Module):
         layers.append(nn.Linear(in_dim, output_dim))
         self.network = nn.Sequential(*layers)
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: Float[Tensor, "b c"]) -> Float[Tensor, "b output_dim"]:
         return self.network(x)

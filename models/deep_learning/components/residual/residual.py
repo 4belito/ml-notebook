@@ -1,7 +1,14 @@
-"""Residual Connection Module."""
+"""Residual Connection Module.
+
+Tensor dimensions:
+    b: batch size
+    c: channel/feature dimension
+"""
 
 import torch
 import torch.nn as nn
+from jaxtyping import Float
+from torch import Tensor
 
 
 class ResidualConnection(nn.Module):
@@ -13,5 +20,5 @@ class ResidualConnection(nn.Module):
         else:
             self.skip = nn.Identity()
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: Float[Tensor, "b c"]) -> Float[Tensor, "b c"]:
         return self.block(x) + self.skip(x)

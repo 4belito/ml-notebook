@@ -1,6 +1,12 @@
-"""Batch Normalization Layer Implementation."""
+"""Batch Normalization Layer Implementation.
+
+Tensor dimensions:
+    b: batch size
+    c: channels/features
+"""
 
 import torch
+from jaxtyping import Float
 from torch import Tensor, nn
 
 
@@ -42,7 +48,7 @@ class BatchNorm1d(nn.Module):
         self.register_buffer("running_var", torch.ones(num_features))
         self.register_buffer("num_batches_tracked", torch.tensor(0, dtype=torch.long))
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: Float[Tensor, "b c"]) -> Float[Tensor, "b c"]:
         # train/eval mode handling (initialized in the parent class nn.Module)
         if self.training:
             # Step 1: Compute batch statistics
@@ -52,7 +58,9 @@ class BatchNorm1d(nn.Module):
             with torch.no_grad():
                 # Update running statistics using exponential moving average
                 n = x.size(0)
-                self.running_mean = (1 - self.momentum) * self.running_mean + self.momentum * mean
+                self.running_mean = (
+                    1 - self.momentum
+                ) * self.running_mean + self.momentum * mean
                 unbias_var = var * n / (n - 1) if n > 1 else var
                 self.running_var = (
                     1 - self.momentum

@@ -1,11 +1,16 @@
-"""Activation Functions implemented in PyTorch."""
+"""Activation Functions implemented in PyTorch.
+
+Tensor dimensions:
+    ...: arbitrary shape (pass-through)
+"""
 
 import torch
+from jaxtyping import Float
 from torch import Tensor, nn
 
 
 class ReLU(nn.Module):
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: Float[Tensor, "..."]) -> Float[Tensor, "..."]:
         return torch.clamp(x, min=0)
 
 
@@ -14,7 +19,7 @@ class LeakyReLU(nn.Module):
         super().__init__()
         self.negative_slope = negative_slope
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: Float[Tensor, "..."]) -> Float[Tensor, "..."]:
         return torch.where(x > 0, x, self.negative_slope * x)
 
 
@@ -25,7 +30,7 @@ class PReLU(nn.Module):
         self.weight = nn.Parameter(a)
         nn.init.constant_(a, init)
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: Float[Tensor, "..."]) -> Float[Tensor, "..."]:
         return torch.where(x > 0, x, self.weight * x)
 
 
@@ -34,7 +39,7 @@ class ELU(nn.Module):
         super().__init__()
         self.alpha = alpha
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: Float[Tensor, "..."]) -> Float[Tensor, "..."]:
         return torch.where(x > 0, x, self.alpha * (torch.exp(x) - 1))
 
 
@@ -44,29 +49,30 @@ class SELU(nn.Module):
         self.alpha = 1.6732632423543772
         self.scale = 1.0507009873554805
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: Float[Tensor, "..."]) -> Float[Tensor, "..."]:
         return self.scale * torch.where(x > 0, x, self.alpha * (torch.exp(x) - 1))
 
 
 class GELU(nn.Module):
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: Float[Tensor, "..."]) -> Float[Tensor, "..."]:
         return (
             0.5
             * x
             * (
                 1
                 + torch.tanh(
-                    torch.sqrt(torch.tensor(2 / torch.pi)) * (x + 0.044715 * torch.pow(x, 3))
+                    torch.sqrt(torch.tensor(2 / torch.pi))
+                    * (x + 0.044715 * torch.pow(x, 3))
                 )
             )
         )
 
 
 class Sigmoid(nn.Module):
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: Float[Tensor, "..."]) -> Float[Tensor, "..."]:
         return 1 / (1 + torch.exp(-x))
 
 
 class Tanh(nn.Module):
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: Float[Tensor, "..."]) -> Float[Tensor, "..."]:
         return (torch.exp(x) - torch.exp(-x)) / (torch.exp(x) + torch.exp(-x))

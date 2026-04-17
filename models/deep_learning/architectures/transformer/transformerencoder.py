@@ -1,18 +1,20 @@
 """
 Transformer Encoder Module.
 Inspired by PyTorch nn.TransformerEncoderLayer
+
+Tensor Dimension Conventions:
+    b: batch size
+    n: sequence length
+    c: embedding dimension / channels (d_model)
 """
 
 import torch
+from jaxtyping import Float
 from torch import Tensor, nn
 
 from models.deep_learning.components import SelfAttention
 
 
-# B: batch size
-# H: number of heads
-# S: sequence length
-# D: head dimension
 class TransformerEncoderLayer(nn.Module):
     def __init__(
         self,
@@ -61,12 +63,14 @@ class TransformerEncoderLayer(nn.Module):
             d_model, eps=layer_norm_eps, device=device, dtype=dtype
         )
 
-    def forward(self, x: Tensor):
+    def forward(self, x: Float[Tensor, "b n c"]) -> Float[Tensor, "b n c"]:
         x = self._skkip_block(x, self.norm1, self.block1)
         x = self._skkip_block(x, self.norm2, self.block2)
         return x
 
-    def _skkip_block(self, x: Tensor, norm: nn.LayerNorm, block: nn.Sequential):
+    def _skkip_block(
+        self, x: Float[Tensor, "b n c"], norm: nn.LayerNorm, block: nn.Sequential
+    ) -> Float[Tensor, "b n c"]:
         if self.norm_first:
             return block(norm(x)) + x
         else:
@@ -84,7 +88,7 @@ class TransformerEncoder(nn.Module):
         self.network = nn.Sequential(*[encoder_layer for _ in range(num_layers)])
         self.norm = norm
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: Float[Tensor, "b n c"]) -> Float[Tensor, "b n c"]:
         x = self.network(x)
         if self.norm is not None:
             x = self.norm(x)

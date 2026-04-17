@@ -1,6 +1,14 @@
+"""Sinusoidal Positional Encoding.
+
+Tensor dimensions:
+    n: sequence length
+    d: embedding dimension
+"""
+
 import math
 
 import torch
+from jaxtyping import Float
 from torch import Tensor, nn
 
 
@@ -28,7 +36,8 @@ class SinusoidalPE(nn.Module):
         position = torch.arange(0, max_len, dtype=torch.float32).unsqueeze(1)
 
         div_term = torch.exp(
-            torch.arange(0, d_model, 2, dtype=torch.float32) * (-math.log(base_freq) / d_model)
+            torch.arange(0, d_model, 2, dtype=torch.float32)
+            * (-math.log(base_freq) / d_model)
         )
 
         pe[:, 0::2] = torch.sin(position * div_term)
@@ -37,6 +46,6 @@ class SinusoidalPE(nn.Module):
         self.pe: Tensor
         self.register_buffer("pe", pe)
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: Float[Tensor, "b n d"]) -> Float[Tensor, "b n d"]:
         seq_len = x.size(0)
         return x + self.pe[:seq_len]

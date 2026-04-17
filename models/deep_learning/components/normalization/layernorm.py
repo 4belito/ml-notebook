@@ -1,6 +1,11 @@
-"""Layer Normalization module."""
+"""Layer Normalization module.
+
+Tensor dimensions:
+    ...: arbitrary batch dimensions
+"""
 
 import torch
+from jaxtyping import Float
 from torch import Tensor, nn
 
 
@@ -33,7 +38,7 @@ class LayerNorm(nn.Module):
             self.register_parameter("weight", None)
             self.register_parameter("bias", None)
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: Float[Tensor, "..."]) -> Float[Tensor, "..."]:
         # Compute mean and variance over last normalized_dims
         dim = tuple(range(x.dim() - self.normalized_dim, x.dim()))
         mean = x.mean(dim=dim, keepdim=True)

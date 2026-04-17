@@ -1,8 +1,16 @@
-"""A 2D convolution layer implementation in PyTorch."""
+"""A 2D convolution layer implementation in PyTorch.
+
+Tensor dimensions:
+    b: batch size
+    c_in: input channels
+    c_out: output channels
+    h, w: height, width
+"""
 
 import math
 
 import torch
+from jaxtyping import Float
 from torch import Tensor, nn
 from torch.nn import Parameter
 
@@ -42,9 +50,13 @@ class Conv2d(nn.Module):
         self.bias: Parameter | None
         # Learnable parameters
         weight_shape = (out_channels, in_channels, *kernel_size)
-        self.weight = nn.Parameter(torch.empty(weight_shape, device=device, dtype=dtype))
+        self.weight = nn.Parameter(
+            torch.empty(weight_shape, device=device, dtype=dtype)
+        )
         if bias:
-            self.bias = nn.Parameter(torch.empty(out_channels, device=device, dtype=dtype))
+            self.bias = nn.Parameter(
+                torch.empty(out_channels, device=device, dtype=dtype)
+            )
         else:
             self.register_parameter("bias", None)
 
@@ -56,7 +68,9 @@ class Conv2d(nn.Module):
             bound = 1 / math.sqrt(fan_in)
             nn.init.uniform_(self.bias, -bound, bound)
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(
+        self, x: Float[Tensor, "b c_in h w"]
+    ) -> Float[Tensor, "b c_out h_out w_out"]:
         N, _, H, W = x.shape
         h, w = self.kernel_size
         sH, sW = self.stride

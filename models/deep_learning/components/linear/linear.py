@@ -1,9 +1,16 @@
-"""Implementation of a linear (fully connected) layer."""
+"""Implementation of a linear (fully connected) layer.
+
+Tensor dimensions:
+    b: batch size
+    c_in: input dimension
+    c_out: output dimension
+"""
 
 import math
 from typing import Literal
 
 import torch
+from jaxtyping import Float
 from torch import Tensor, nn
 
 
@@ -27,7 +34,9 @@ class Linear(nn.Module):
             case "relu":
                 nn.init.kaiming_uniform_(self.weight, a=0, nonlinearity="relu")
             case "leaky_relu":
-                nn.init.kaiming_uniform_(self.weight, a=init_a, nonlinearity="leaky_relu")
+                nn.init.kaiming_uniform_(
+                    self.weight, a=init_a, nonlinearity="leaky_relu"
+                )
             case "tanh":
                 gain = nn.init.calculate_gain("tanh")
                 nn.init.xavier_uniform_(self.weight, gain=gain)
@@ -44,7 +53,7 @@ class Linear(nn.Module):
         else:
             self.register_parameter("bias", None)
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: Float[Tensor, "... c_in"]) -> Float[Tensor, "... c_out"]:
         out = x @ self.weight.T
         if self.bias:
             out += self.bias
