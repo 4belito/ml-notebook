@@ -13,7 +13,10 @@ from torch import Tensor, nn
 
 
 class FourierPositionalEncoding(nn.Module):
-    """Multi-dimensional separable Fourier Encoding embeding dimension is 2 * self.ndim"""
+    """
+    Multi-dimensional separable Fourier Encoding embeding dimension is
+    2 * self.ndim
+    """
 
     def __init__(self, freq: Tensor):
         super().__init__()

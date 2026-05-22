@@ -16,13 +16,15 @@ from models.deep_learning.components import SelfAttention
 
 
 class TransformerEncoderLayer(nn.Module):
+    """Transformer Encoder Layer."""
+
     def __init__(
         self,
         d_model: int,
         nhead: int,
         dim_feedforward: int = 2048,
         dropout: float = 0.1,
-        activation: str = "relu",
+        activation_cls: type[nn.Module] = nn.ReLU,
         layer_norm_eps: float = 1e-5,
         batch_first: bool = False,
         norm_first: bool = False,
@@ -31,12 +33,6 @@ class TransformerEncoderLayer(nn.Module):
         dtype: torch.dtype | None = None,
     ):
         super().__init__()
-        if activation == "relu":
-            self.activation = nn.ReLU()
-        elif activation == "gelu":
-            self.activation = nn.GELU()
-        else:
-            raise RuntimeError(f"activation should be relu/gelu, not {activation}")
         self.norm_first = norm_first
         selfatt = SelfAttention(
             d_model,
@@ -51,7 +47,7 @@ class TransformerEncoderLayer(nn.Module):
 
         self.block2 = nn.Sequential(
             nn.Linear(d_model, dim_feedforward, bias=bias, device=device, dtype=dtype),
-            self.activation,
+            activation_cls(),
             nn.Dropout(dropout),
             nn.Linear(dim_feedforward, d_model, bias=bias, device=device, dtype=dtype),
             nn.Dropout(dropout),

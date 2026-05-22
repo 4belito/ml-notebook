@@ -19,6 +19,7 @@
   },
   // Ruff global behavior inside VSCode
   "ruff.lint.select": ["E", "F", "I", "B", "UP", "SIM", "C4"], // "D"
+  "ruff.lint.ignore": ["F722"], // jaxtyping shape strings ("b n c") are not valid Python expressions
   "ruff.organizeImports": true,
   // Code | Purpose
   // ---------------------------
