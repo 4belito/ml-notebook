@@ -12,7 +12,8 @@ class SelfAttention(nn.Module):
     b: Batch dimensioin
     n: sequence length
     c: input dimensions for Q, K, V
-    dk, dv: dimensions for each head's Q, K and V
+    dk: dimensions for each head's Q, K
+    dv: dimensions for each head's V
     do: output dimension
     h: number of heads.
     """
