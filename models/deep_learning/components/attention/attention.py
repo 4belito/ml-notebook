@@ -74,13 +74,14 @@ class MultiheadAttention(nn.Module):
     m: querry sequence length
     n: key-value sequence length
     cq, ck, cv: input dimensions for Q, K, V
-    dk, dv: dimensions for each head's Q, K and V
+    dk: dimensions for each head's K(and Q)
+    dv: dimensions for each head's V
     do: output dimension
     h: number of heads.
 
     The initialization of the weights differs from PyTorch’s `nn.MultiheadAttention`.
     Here we use standard `nn.Linear` initialization (Xavier uniform for weights and
-    zeros for biases) for clarity and simplicity.
+    zeros for biases) for clarity and simplicity of the implementation.
     """
 
     def __init__(
@@ -98,7 +99,6 @@ class MultiheadAttention(nn.Module):
         dtype: torch.dtype | None = None,
     ):
         super().__init__()
-        assert dk % h == 0, "dk must be divisible by h"
         self.cq = cq
         self.ck = ck
         self.cv = cv
