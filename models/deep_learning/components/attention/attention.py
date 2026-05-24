@@ -1,5 +1,7 @@
 """Multi-Head Attention module with (general) parameter."""
 
+from __future__ import annotations
+
 import einops
 import torch
 from jaxtyping import Float
@@ -95,6 +97,7 @@ class MultiheadAttention(nn.Module):
         do: int,
         h: int,
         bias: bool = True,
+        dropout: float = 0.0,
         add_bias_kv: bool = False,
         device: torch.device | None = None,
         dtype: torch.dtype | None = None,
@@ -110,6 +113,7 @@ class MultiheadAttention(nn.Module):
         self.add_bias_kv = add_bias_kv
         self.device = device
         self.dtype = dtype
+        self.dropout = nn.Dropout(dropout)
         # Q -> QW_q+1_Mb^T_q
         self.q_proj = nn.Linear(cq, dk * h, bias, self.device, self.dtype)
         # K -> KW_k+1_Mb^T_k
@@ -125,6 +129,38 @@ class MultiheadAttention(nn.Module):
             self.bias_v = nn.Parameter(
                 torch.zeros(1, 1, dv * h, device=self.device, dtype=self.dtype)
             )
+
+    @classmethod
+    def from_torch_mha(
+        cls: type[MultiheadAttention],
+        embed_dim: int,
+        num_heads: int,
+        bias: bool = True,
+        dropout: float = 0.0,
+        add_bias_kv: bool = False,
+        kdim: int | None = None,
+        vdim: int | None = None,
+        device: torch.device | None = None,
+        dtype: torch.dtype | None = None,
+    ) -> MultiheadAttention:
+        """Initialize the weights from a PyTorch nn.MultiheadAttention module."""
+        # Initialize a PyTorch MHA module to get the weights
+        assert embed_dim % num_heads == 0, "embed_dim must be divisible by num_heads"
+        dh = embed_dim // num_heads
+        return cls(
+            cq=embed_dim,
+            ck=kdim if kdim is not None else embed_dim,
+            cv=vdim if vdim is not None else embed_dim,
+            dk=dh,
+            dv=dh,
+            do=embed_dim,
+            h=num_heads,
+            bias=bias,
+            dropout=dropout,
+            add_bias_kv=add_bias_kv,
+            device=device,
+            dtype=dtype,
+        )
 
     def forward(
         self,
@@ -172,6 +208,7 @@ class MultiheadAttention(nn.Module):
         attn = nn.functional.softmax(scores / (self.dk**0.5), dim=-1)
 
         # softmax(QK^T/sqrt(dk))V
+        attn = self.dropout(attn)
         o = torch.einsum("bhmn, bhnv -> bhmv", attn, r_v)
 
         # Reshape back
