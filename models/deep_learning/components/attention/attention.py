@@ -27,27 +27,27 @@ class SelfAttention(nn.Module):
         dropout: float = 0.0,
         bias: bool = True,
         add_bias_kv: bool = False,
-        add_zero_attn: bool = False,
         kdim: int | None = None,
         vdim: int | None = None,
-        batch_first: bool = False,
         device: torch.device | None = None,
         dtype: torch.dtype | None = None,
     ):
         super().__init__()
-        self.mha = nn.MultiheadAttention(
+        self.mha = MultiheadAttention.from_torch_mha(
             mbed_dim,
             num_heades,
             dropout=dropout,
             bias=bias,
             add_bias_kv=add_bias_kv,
-            add_zero_attn=add_zero_attn,
             kdim=kdim,
             vdim=vdim,
-            batch_first=batch_first,
             device=device,
             dtype=dtype,
         )
+
+    def load_weights_from_torch_mha(self, src: nn.MultiheadAttention):
+        """Load weights from an nn.MultiheadAttention."""
+        self.mha.load_weigths_from_torch_mha(src)
 
     def forward(
         self,
@@ -56,18 +56,8 @@ class SelfAttention(nn.Module):
         | Float[Tensor, "(b*h) n n"]
         | Float[Tensor, "b h n n"]
         | None = None,
-        key_padding_mask: Tensor | None = None,
-        is_causal: bool = False,
     ):
-        return self.mha(
-            x,
-            x,
-            x,
-            attn_mask=attn_mask,
-            key_padding_mask=key_padding_mask,
-            need_weights=False,
-            is_causal=is_causal,
-        )[0]
+        return self.mha(x, x, x, attn_mask=attn_mask)
 
 
 class MultiheadAttention(nn.Module):
@@ -113,6 +103,7 @@ class MultiheadAttention(nn.Module):
         self.add_bias_kv = add_bias_kv
         self.device = device
         self.dtype = dtype
+        self.bias = bias
         self.dropout = nn.Dropout(dropout)
         # Q -> QW_q+1_Mb^T_q
         self.q_proj = nn.Linear(cq, dk * h, bias, self.device, self.dtype)
@@ -130,6 +121,33 @@ class MultiheadAttention(nn.Module):
                 torch.zeros(1, 1, dv * h, device=self.device, dtype=self.dtype)
             )
 
+    def load_weigths_from_torch_mha(self, src: nn.MultiheadAttention):
+        """Load weights from an nn.MultiheadAttention."""
+        with torch.no_grad():
+            if src.kdim == src.embed_dim and src.vdim == src.embed_dim:
+                d = src.in_proj_weight.shape[0] // 3
+                self.q_proj.weight.copy_(src.in_proj_weight[0:d])
+                self.k_proj.weight.copy_(src.in_proj_weight[d : 2 * d])
+                self.v_proj.weight.copy_(src.in_proj_weight[2 * d :])
+            else:
+                self.q_proj.weight.copy_(src.q_proj_weight)
+                self.k_proj.weight.copy_(src.k_proj_weight)
+                self.v_proj.weight.copy_(src.v_proj_weight)
+
+            if self.bias:
+                d = src.in_proj_bias.shape[0] // 3
+                self.q_proj.bias.copy_(src.in_proj_bias[0:d])
+                self.k_proj.bias.copy_(src.in_proj_bias[d : 2 * d])
+                self.v_proj.bias.copy_(src.in_proj_bias[2 * d :])
+
+            if self.add_bias_kv and src.bias_k is not None and src.bias_v is not None:
+                self.bias_k.copy_(src.bias_k.squeeze(0))
+                self.bias_v.copy_(src.bias_v.squeeze(0))
+
+            self.out_proj.weight.copy_(src.out_proj.weight)
+            if self.bias:
+                self.out_proj.bias.copy_(src.out_proj.bias)
+
     @classmethod
     def from_torch_mha(
         cls: type[MultiheadAttention],
@@ -143,8 +161,7 @@ class MultiheadAttention(nn.Module):
         device: torch.device | None = None,
         dtype: torch.dtype | None = None,
     ) -> MultiheadAttention:
-        """Initialize the weights from a PyTorch nn.MultiheadAttention module."""
-        # Initialize a PyTorch MHA module to get the weights
+        """Create instance with weights copied from an nn.MultiheadAttention."""
         assert embed_dim % num_heads == 0, "embed_dim must be divisible by num_heads"
         dh = embed_dim // num_heads
         return cls(

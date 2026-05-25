@@ -15,7 +15,9 @@ def _calculate_fan_in_and_fan_out(tensor: Tensor):
     """Calculates the fan-in and fan-out for a given tensor."""
     dimensions = tensor.dim()
     if dimensions < 2:
-        raise ValueError("Fan in/out can not be computed for tensor with fewer than 2 dimensions")
+        raise ValueError(
+            "Fan in/out can not be computed for tensor with fewer than 2 dimensions"
+        )
 
     num_input_fmaps = tensor.size(1)
     num_output_fmaps = tensor.size(0)
@@ -48,8 +50,8 @@ def xavier_uniform_(tensor: Tensor, gain: float = 1.0):
     according to Xavier/Glorot uniform initialization.
 
     Reference:
-    Glorot & Bengio (2010), "Understanding the difficulty of training deep feedforward neural
-    networks".
+    Glorot & Bengio (2010), "Understanding the difficulty of training deep feedforward
+    neural networks".
     """
 
     # 1) Compute fan_in and fan_out
@@ -69,8 +71,8 @@ def xavier_normal_(tensor: Tensor, gain: float = 1.0):
     according to Xavier/Glorot normal initialization.
 
     Reference:
-    Glorot & Bengio (2010), "Understanding the difficulty of training deep feedforward neural
-    networks".
+    Glorot & Bengio (2010), "Understanding the difficulty of training deep feedforward
+    neural networks".
     """
 
     # 1) Compute fan_in and fan_out
@@ -85,7 +87,10 @@ def xavier_normal_(tensor: Tensor, gain: float = 1.0):
 
 
 def kaiming_uniform_(
-    tensor: Tensor, a: float = 0.0, mode: str = "fan_in", nonlinearity: _NoLinearity = "leaky_relu"
+    tensor: Tensor,
+    a: float = 0.0,
+    mode: str = "fan_in",
+    nonlinearity: _NoLinearity = "leaky_relu",
 ):
     """
     Fills the input `tensor` with values drawn from U(-bound, bound)
