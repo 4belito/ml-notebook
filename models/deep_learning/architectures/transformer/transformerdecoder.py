@@ -1,12 +1,14 @@
 """
-Transformer Encoder Module.
-Inspired by PyTorch nn.TransformerEncoderLayer
+Transformer Decoder Module.
+Inspired by PyTorch nn.TransformerDecoderLayer
 
 Tensor Dimension Conventions:
     b: batch size
     n: sequence length
     c: embedding dimension / channels (d_model)
 """
+
+import copy
 
 import torch
 from jaxtyping import Float
@@ -16,6 +18,8 @@ from models.deep_learning.components import MultiheadAttention, SelfAttention
 
 
 class TransformerDecoderLayer(nn.Module):
+    """Transformer Decoder Layer."""
+
     def __init__(
         self,
         d_model: int,
@@ -28,18 +32,12 @@ class TransformerDecoderLayer(nn.Module):
         bias: bool = True,
         device: torch.device | None = None,
         dtype: torch.dtype | None = None,
-    ) -> None:
-        self.norm_first = norm_first
-        self.self_attn = SelfAttention(
-            d_model,
-            nhead,
-            dropout=dropout,
-            bias=bias,
-            device=device,
-            dtype=dtype,
-        )
+    ):
         super().__init__()
-        self.multihead_attn = MultiheadAttention.from_torch_mha(
+        self.norm_first = norm_first
+
+        # Block 1: Self-Attention
+        self.selfattn = SelfAttention(
             d_model,
             nhead,
             dropout=dropout,
@@ -47,89 +45,102 @@ class TransformerDecoderLayer(nn.Module):
             device=device,
             dtype=dtype,
         )
-        # Implementation of Feedforward model
-        self.ff_block = nn.Sequential(
-            nn.Linear(d_model, dim_feedforward, bias=bias, device=device, dtype=dtype),
+        self.selfattn_norm = nn.LayerNorm(
+            d_model, eps=layer_norm_eps, device=device, dtype=dtype
+        )
+        self.selfattn_dropout = nn.Dropout(dropout)
+
+        # Block 2: Multi-Head Attention
+        self.multiheadattn = MultiheadAttention.from_torch_mha(
+            d_model,
+            nhead,
+            dropout=dropout,
+            bias=bias,
+            device=device,
+            dtype=dtype,
+        )
+        self.multiheadattn_norm = nn.LayerNorm(
+            d_model, eps=layer_norm_eps, device=device, dtype=dtype
+        )
+        self.multiheadattn_dropout = nn.Dropout(dropout)
+
+        # Block 3: Feedforward Network
+        self.linear1 = nn.Linear(
+            d_model, dim_feedforward, bias=bias, device=device, dtype=dtype
+        )
+        self.linear2 = nn.Linear(
+            dim_feedforward, d_model, bias=bias, device=device, dtype=dtype
+        )
+        self.ffn_block = nn.Sequential(
+            self.linear1,
             activation_cls(),
             nn.Dropout(dropout),
-            nn.Linear(dim_feedforward, d_model, bias=bias, device=device, dtype=dtype),
+            self.linear2,
             nn.Dropout(dropout),
         )
-
-        self.norm_first = norm_first
-        # pyrefly: ignore [bad-argument-type]
-        self.selfattn_norm = nn.LayerNorm(
-            d_model, eps=layer_norm_eps, bias=bias, dtype=dtype, device=device
-        )
-        # pyrefly: ignore [bad-argument-type]
-        self.multiattn_norm = nn.LayerNorm(
-            d_model, eps=layer_norm_eps, bias=bias, dtype=dtype, device=device
-        )
-        # pyrefly: ignore [bad-argument-type]
-        self.ff_norm = nn.LayerNorm(
-            d_model, eps=layer_norm_eps, bias=bias, dtype=dtype, device=device
+        self.ffn_norm = nn.LayerNorm(
+            d_model, eps=layer_norm_eps, device=device, dtype=dtype
         )
 
-        self.selfattn_dropout = nn.Dropout(dropout)
-        self.multiattn_dropout = nn.Dropout(dropout)
-        self.activation = activation_cls()
-
-    def forward(self, x: Float[Tensor, "b n c"]) -> Float[Tensor, "b n c"]:
-
-        return x
-
-    def _selfattn_block(
+    def _forward_selfattn(
         self,
         x: Float[Tensor, "b n c"],
-        key_padding_mask: Tensor | None = None,
+        attn_mask: Float[Tensor, "n n"] | None = None,
     ) -> Float[Tensor, "b n c"]:
         if self.norm_first:
-            x = self.selfattn_norm(x)
-            x_selfattn = self.self_attn(
-                x,
-                key_padding_mask=key_padding_mask,
-                need_weights=False,
-                is_causal=True,
-            )[0]
-            x = self.selfattn_dropout(x_selfattn) + x
-        if not self.norm_first:
-            x_selfattn = self.self_attn(
-                x,
-                key_padding_mask=key_padding_mask,
-                need_weights=False,
-                is_causal=True,
-            )[0]
-            x = self.selfattn_dropout(x_selfattn) + x
-            x = self.selfattn_norm(x)
-        return x
+            y = self.selfattn_norm(x)
+            y = self.selfattn(y, attn_mask=attn_mask)
+            y = self.selfattn_dropout(y)
+            return y + x
+        else:
+            y = self.selfattn(x, attn_mask=attn_mask)
+            y = self.selfattn_dropout(y)
+        return self.selfattn_norm(y + x)
 
-    def multiattn_block(
+    def _forward_multiheadattn(
+        self, x: Float[Tensor, "b n c"], memory: Float[Tensor, "b m c"]
+    ) -> Float[Tensor, "b n c"]:
+        if self.norm_first:
+            y = self.multiheadattn_norm(x)
+            y = self.multiheadattn(y, memory, memory)
+            y = self.multiheadattn_dropout(y)
+            return y + x
+        else:
+            y = self.multiheadattn(x, memory, memory)
+            y = self.multiheadattn_dropout(y)
+        return self.multiheadattn_norm(y + x)
+
+    def _forward_ffn(self, x: Float[Tensor, "b n c"]) -> Float[Tensor, "b n c"]:
+        if self.norm_first:
+            return self.ffn_block(self.ffn_norm(x)) + x
+        return self.ffn_norm(self.ffn_block(x) + x)
+
+    def forward(
         self,
         x: Float[Tensor, "b n c"],
         memory: Float[Tensor, "b m c"],
-        key_padding_mask: Tensor | None = None,
+        tgt_mask: Float[Tensor, "n n"] | None = None,
     ) -> Float[Tensor, "b n c"]:
-        if self.norm_first:
-            x = self.multiattn_norm(x)
-            x_multiattn = self.multihead_attn(
-                x,
-                memory,
-                memory,
-                key_padding_mask=key_padding_mask,
-                need_weights=False,
-            )[0]
-            x = self.multiattn_dropout(x_multiattn) + x
-        if not self.norm_first:
-            x_multiattn = self.multihead_attn(
-                x,
-                memory,
-                memory,
-                key_padding_mask=key_padding_mask,
-                need_weights=False,
-            )[0]
-            x = self.multiattn_dropout(x_multiattn) + x
-            x = self.multiattn_norm(x)
+        x = self._forward_selfattn(x, attn_mask=tgt_mask)
+        x = self._forward_multiheadattn(x, memory)
+        x = self._forward_ffn(x)
         return x
+
+    def load_weights_from_torch_decoder_layer(self, src: nn.TransformerDecoderLayer):
+        """Load weights from an nn.TransformerDecoderLayer."""
+        self.selfattn.load_weights_from_torch_mha(src.self_attn)
+        self.multiheadattn.load_weights_from_torch_mha(src.multihead_attn)
+        with torch.no_grad():
+            self.linear1.weight.copy_(src.linear1.weight)
+            self.linear1.bias.copy_(src.linear1.bias)
+            self.linear2.weight.copy_(src.linear2.weight)
+            self.linear2.bias.copy_(src.linear2.bias)
+            self.selfattn_norm.weight.copy_(src.norm1.weight)
+            self.selfattn_norm.bias.copy_(src.norm1.bias)
+            self.multiheadattn_norm.weight.copy_(src.norm2.weight)
+            self.multiheadattn_norm.bias.copy_(src.norm2.bias)
+            self.ffn_norm.weight.copy_(src.norm3.weight)
+            self.ffn_norm.bias.copy_(src.norm3.bias)
 
 
 class TransformerDecoder(nn.Module):
@@ -140,11 +151,19 @@ class TransformerDecoder(nn.Module):
         norm: nn.LayerNorm | None,
     ):
         super().__init__()
-        self.network = nn.Sequential(*[decoder_layer for _ in range(num_layers)])
+        self.network = nn.ModuleList(
+            [copy.deepcopy(decoder_layer) for _ in range(num_layers)]
+        )
         self.norm = norm
 
-    def forward(self, x: Float[Tensor, "b n c"]) -> Float[Tensor, "b n c"]:
-        x = self.network(x)
+    def forward(
+        self,
+        x: Float[Tensor, "b n c"],
+        memory: Float[Tensor, "b m c"],
+        tgt_mask: Float[Tensor, "n n"] | None = None,
+    ) -> Float[Tensor, "b n c"]:
+        for layer in self.network:
+            x = layer(x, memory, tgt_mask=tgt_mask)
         if self.norm is not None:
             x = self.norm(x)
         return x

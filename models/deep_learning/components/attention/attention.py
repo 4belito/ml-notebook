@@ -47,7 +47,7 @@ class SelfAttention(nn.Module):
 
     def load_weights_from_torch_mha(self, src: nn.MultiheadAttention):
         """Load weights from an nn.MultiheadAttention."""
-        self.mha.load_weigths_from_torch_mha(src)
+        self.mha.load_weights_from_torch_mha(src)
 
     def forward(
         self,
@@ -121,7 +121,7 @@ class MultiheadAttention(nn.Module):
                 torch.zeros(1, 1, dv * h, device=self.device, dtype=self.dtype)
             )
 
-    def load_weigths_from_torch_mha(self, src: nn.MultiheadAttention):
+    def load_weights_from_torch_mha(self, src: nn.MultiheadAttention):
         """Load weights from an nn.MultiheadAttention."""
         with torch.no_grad():
             if src.kdim == src.embed_dim and src.vdim == src.embed_dim:
