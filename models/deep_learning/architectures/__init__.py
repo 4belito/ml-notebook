@@ -1,6 +1,7 @@
 from .convolution import conv2d
 from .mlp import MLP
 from .transformer import (
+    Transformer,
     TransformerDecoder,
     TransformerDecoderLayer,
     TransformerEncoder,
@@ -14,4 +15,5 @@ __all__ = [
     "MLP",
     "TransformerDecoder",
     "TransformerDecoderLayer",
+    "Transformer",
 ]

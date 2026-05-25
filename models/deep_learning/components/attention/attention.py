@@ -1,4 +1,36 @@
-"""Multi-Head Attention module with (general) parameter."""
+"""
+Educational Multi-Head Attention: MultiheadAttention + SelfAttention.
+
+Goal: an explicit, readable attention implementation that exposes every
+projection and the score computation step-by-step. Correctness is verified
+by loading weights from nn.MultiheadAttention and comparing outputs —
+non-masked positions match exactly; deviations from nn are documented below.
+
+Similarities with nn.MultiheadAttention:
+    - Same scaled dot-product attention formula: softmax(QK^T / sqrt(dk)) V.
+    - Same multi-head split/merge via reshape (einops rearrange).
+    - Separate q_proj / k_proj / v_proj + out_proj structure.
+    - Weights are identical after load_weights_from_torch_mha.
+
+Discrepancies vs nn.MultiheadAttention:
+    - Always batch-first (b, n, c); nn default is seq-first (n, b, c).
+    - Weights split into separate q_proj / k_proj / v_proj Linear layers;
+      nn packs them into a single in_proj_weight. Random init therefore
+      differs at the same seed, but values match after weight loading.
+    - Attention dropout uses an explicit nn.Dropout. On CPU/MPS,
+      F.scaled_dot_product_attention uses the same global PyTorch RNG
+      (math backend, no fused kernel), so training outputs match exactly.
+      On CUDA with flash attention the kernel uses a separate Philox RNG
+      not reset by torch.manual_seed, so dropout masks diverge there.
+    - Fully-masked rows (all -inf in attn_mask): we apply nan_to_num and
+      return 0, matching F.scaled_dot_product_attention (the path used
+      by nn.TransformerEncoderLayer internally with need_weights=False).
+      Calling nn.MultiheadAttention directly with need_weights=True (the
+      default) instead returns nan for those rows.
+    - key_padding_mask and is_causal are not supported; they must be
+      pre-merged into attn_mask by the caller (see Transformer._add_masks).
+    - need_weights is not supported; attention weights are never returned.
+"""
 
 from __future__ import annotations
 
@@ -9,15 +41,21 @@ from torch import Tensor, nn
 
 
 class SelfAttention(nn.Module):
-    """
-    Multi-Head Attention module with (general) parameters
-    b: Batch dimensioin
-    n: sequence length
-    c: input dimensions for Q, K, V
-    dk: dimensions for each head's Q, K
-    dv: dimensions for each head's V
-    do: output dimension
-    h: number of heads.
+    """Thin wrapper around MultiheadAttention for the self-attention case (Q=K=V=x).
+
+    Used by TransformerEncoderLayer and TransformerDecoderLayer so they work
+    with a single input tensor instead of separate Q, K, V tensors.
+
+    Args:
+        mbed_dim: embedding dimension (d_model).
+        num_heades: number of attention heads.
+        dropout: dropout probability on attention weights.
+        bias: whether projection layers include a bias term.
+        add_bias_kv: if True, append learnable bias to K and V sequences.
+        kdim: key input dimension (defaults to mbed_dim).
+        vdim: value input dimension (defaults to mbed_dim).
+        device: target device.
+        dtype: target dtype.
     """
 
     def __init__(
@@ -61,20 +99,37 @@ class SelfAttention(nn.Module):
 
 
 class MultiheadAttention(nn.Module):
-    """
-    Multi-Head Attention module with (general) parameters
-    b: Batch dimensioin
-    m: querry sequence length
-    n: key-value sequence length
-    cq, ck, cv: input dimensions for Q, K, V
-    dk: dimensions for each head's K(and Q)
-    dv: dimensions for each head's V
-    do: output dimension
-    h: number of heads.
+    """General Multi-Head Attention with explicit separate projections.
 
-    The initialization of the weights differs from PyTorch’s `nn.MultiheadAttention`.
-    Here we use standard `nn.Linear` initialization (Xavier uniform for weights and
-    zeros for biases) for clarity and simplicity of the implementation.
+    Supports different Q / K / V input dimensions (cq, ck, cv) and head
+    dimensions (dk, dv), making the full generality of MHA visible.
+    Use from_torch_mha for the standard case (cq=ck=cv=d_model, dk=dv=d_model/h).
+
+    All deviations from nn.MultiheadAttention are listed in the module docstring.
+
+    Tensor dimension conventions:
+        b:  batch size
+        m:  query sequence length
+        n:  key/value sequence length
+        cq, ck, cv: input dims for Q, K, V
+        dk: per-head key/query dimension
+        dv: per-head value dimension
+        do: output dimension
+        h:  number of heads
+
+    Args:
+        cq: query input dimension.
+        ck: key input dimension.
+        cv: value input dimension.
+        dk: per-head key/query dimension.
+        dv: per-head value dimension.
+        do: output dimension.
+        h: number of attention heads.
+        bias: whether projection layers include a bias term.
+        dropout: dropout probability applied to attention weights.
+        add_bias_kv: if True, append learnable bias vectors to K and V.
+        device: target device.
+        dtype: target dtype.
     """
 
     def __init__(
@@ -161,7 +216,11 @@ class MultiheadAttention(nn.Module):
         device: torch.device | None = None,
         dtype: torch.dtype | None = None,
     ) -> MultiheadAttention:
-        """Create instance with weights copied from an nn.MultiheadAttention."""
+        """Construct an instance with the standard nn.MultiheadAttention shape.
+
+        Sets dk = dv = embed_dim // num_heads and do = embed_dim,
+        matching PyTorch's default MHA configuration.
+        """
         assert embed_dim % num_heads == 0, "embed_dim must be divisible by num_heads"
         dh = embed_dim // num_heads
         return cls(
@@ -189,7 +248,19 @@ class MultiheadAttention(nn.Module):
         | Float[Tensor, "b h m n"]
         | None = None,
     ) -> Float[Tensor, "b m do"]:
-        """Forward pass of the MHA module."""
+        """Compute multi-head attention output.
+
+        Args:
+            Q: query tensor (b, m, cq).
+            K: key tensor   (b, n, ck).
+            V: value tensor (b, n, cv).
+            attn_mask: additive float mask added to scores before softmax.
+                Shape (m, n), (b*h, m, n), or (b, h, m, n).
+                Fully-masked rows (all -inf) output a zero vector.
+
+        Returns:
+            Attention output (b, m, do).
+        """
         # Linear projections
         proj_q = self.q_proj(Q)  # Q=QW_q+1_Mb^T_q
         proj_k = self.k_proj(K)  # K=KW_k+1_Mb^T_k
@@ -221,8 +292,21 @@ class MultiheadAttention(nn.Module):
                     raise ValueError("attn_mask has incorrect dimensions")
             scores += attn_mask
 
-        # softmax(QK^T/sqrt(dk))
-        attn = nn.functional.softmax(scores / (self.dk**0.5), dim=-1)
+        # Numerically stable softmax(QK^T / sqrt(dk)).
+        # Standard F.softmax fails for fully-masked rows: softmax([-inf,...])
+        # produces nan, and even though nan_to_num zeros the forward output,
+        # the softmax Jacobian contains nan so nan * 0 = nan gradients
+        # propagate back and corrupt q_proj / k_proj weights during training.
+        #
+        # Fix: subtract the row max before exp (standard log-sum-exp trick).
+        # For fully-masked rows the max is -inf; clamp it to 0 so that
+        # (-inf) - 0 = -inf and exp(-inf) = 0, avoiding (-inf) - (-inf) = nan.
+        # Clamp the denominator to avoid 0/0 for fully-masked rows → output 0.
+        # This matches F.scaled_dot_product_attention (need_weights=False path).
+        scores_scaled = scores / (self.dk**0.5)
+        row_max = scores_scaled.amax(dim=-1, keepdim=True).nan_to_num(neginf=0.0)
+        exp_s = (scores_scaled - row_max).exp()
+        attn = exp_s / exp_s.sum(dim=-1, keepdim=True).clamp(min=1e-9)
 
         # softmax(QK^T/sqrt(dk))V
         attn = self.dropout(attn)

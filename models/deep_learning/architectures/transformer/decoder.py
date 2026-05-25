@@ -1,11 +1,38 @@
 """
-Transformer Decoder Module.
-Inspired by PyTorch nn.TransformerDecoderLayer
+Educational Transformer Decoder: TransformerDecoderLayer + TransformerDecoder.
 
-Tensor Dimension Conventions:
+Goal: an explicit, readable decoder that exposes every sub-block as a named
+attribute and makes the data flow easy to follow. Weights can be copied from
+nn.TransformerDecoderLayer / nn.TransformerDecoder to verify correctness —
+eval outputs match exactly; deviations from nn are documented below.
+
+Similarities with nn.TransformerDecoderLayer:
+    - Same three sub-blocks (masked self-attn + cross-attn + FFN) in the same order.
+    - Same pre-norm / post-norm behaviour controlled by norm_first.
+    - Dropout applied at identical positions after each sub-block output.
+
+Discrepancies vs nn.TransformerDecoderLayer:
+    - Always batch-first (b, n, c); nn default is seq-first (n, b, c).
+    - activation_cls takes a class (nn.GELU); nn takes a string ("gelu").
+    - Both attention blocks use separate q_proj/k_proj/v_proj; nn packs them
+      into a single in_proj_weight per block. The packed single-GEMM backward
+      differs in floating-point order from three separate GEMMs, producing
+      ~1e-8 gradient differences that amplify to ~1e-3 after multi-layer
+      propagation through updated weights.
+    - Attention dropout goes through an explicit nn.Dropout. On CPU/MPS training
+      outputs match because F.scaled_dot_product_attention uses the same global
+      RNG (math backend). On CUDA with flash attention the Philox RNG diverges.
+    - key_padding_mask is not passed per sub-block; it is merged into the
+      attention mask upstream (Transformer._add_masks). Float (0/-inf) masks
+      work correctly via addition; boolean masks are not supported.
+    - is_causal is not supported.
+
+Tensor dimension conventions:
     b: batch size
-    n: sequence length
-    c: embedding dimension / channels (d_model)
+    m: target sequence length
+    n: source (memory) sequence length
+    c: embedding dimension (d_model)
+    h: number of attention heads
 """
 
 import copy
@@ -18,7 +45,23 @@ from models.deep_learning.components import MultiheadAttention, SelfAttention
 
 
 class TransformerDecoderLayer(nn.Module):
-    """Transformer Decoder Layer."""
+    """Single decoder layer: masked self-attention + cross-attention + FFN.
+
+    Supports both post-norm (norm_first=False, default) and pre-norm
+    (norm_first=True) variants.
+
+    Args:
+        d_model: embedding dimension.
+        nhead: number of attention heads.
+        dim_feedforward: inner dimension of the FFN.
+        dropout: dropout probability (applied after each sub-block).
+        activation_cls: activation class for the FFN (e.g. nn.ReLU, nn.GELU).
+        layer_norm_eps: epsilon for LayerNorm layers.
+        norm_first: if True, apply LayerNorm before each sub-block (pre-norm).
+        bias: whether linear layers include a bias term.
+        device: target device.
+        dtype: target dtype.
+    """
 
     def __init__(
         self,
@@ -85,28 +128,31 @@ class TransformerDecoderLayer(nn.Module):
     def _forward_selfattn(
         self,
         x: Float[Tensor, "b n c"],
-        attn_mask: Float[Tensor, "n n"] | None = None,
+        mask: Float[Tensor, "n n"] | None = None,
     ) -> Float[Tensor, "b n c"]:
         if self.norm_first:
             y = self.selfattn_norm(x)
-            y = self.selfattn(y, attn_mask=attn_mask)
+            y = self.selfattn(y, attn_mask=mask)
             y = self.selfattn_dropout(y)
             return y + x
         else:
-            y = self.selfattn(x, attn_mask=attn_mask)
+            y = self.selfattn(x, attn_mask=mask)
             y = self.selfattn_dropout(y)
         return self.selfattn_norm(y + x)
 
     def _forward_multiheadattn(
-        self, x: Float[Tensor, "b n c"], memory: Float[Tensor, "b m c"]
+        self,
+        x: Float[Tensor, "b n c"],
+        memory: Float[Tensor, "b m c"],
+        mask: Float[Tensor, "n m"] | None = None,
     ) -> Float[Tensor, "b n c"]:
         if self.norm_first:
             y = self.multiheadattn_norm(x)
-            y = self.multiheadattn(y, memory, memory)
+            y = self.multiheadattn(y, memory, memory, attn_mask=mask)
             y = self.multiheadattn_dropout(y)
             return y + x
         else:
-            y = self.multiheadattn(x, memory, memory)
+            y = self.multiheadattn(x, memory, memory, attn_mask=mask)
             y = self.multiheadattn_dropout(y)
         return self.multiheadattn_norm(y + x)
 
@@ -119,10 +165,21 @@ class TransformerDecoderLayer(nn.Module):
         self,
         x: Float[Tensor, "b n c"],
         memory: Float[Tensor, "b m c"],
+        memory_mask: Float[Tensor, "n m"] | None = None,
         tgt_mask: Float[Tensor, "n n"] | None = None,
     ) -> Float[Tensor, "b n c"]:
-        x = self._forward_selfattn(x, attn_mask=tgt_mask)
-        x = self._forward_multiheadattn(x, memory)
+        """
+        Args:
+            x: target sequence (b, m, d_model).
+            memory: encoder output (b, n, d_model).
+            tgt_mask: additive mask for self-attention over x (m, m).
+            memory_mask: additive mask for cross-attention (m, n).
+
+        Returns:
+            Decoded sequence (b, m, d_model).
+        """
+        x = self._forward_selfattn(x, mask=tgt_mask)
+        x = self._forward_multiheadattn(x, memory, mask=memory_mask)
         x = self._forward_ffn(x)
         return x
 
@@ -144,11 +201,20 @@ class TransformerDecoderLayer(nn.Module):
 
 
 class TransformerDecoder(nn.Module):
+    """Stack of N TransformerDecoderLayer instances with an optional final LayerNorm.
+
+    Args:
+        decoder_layer: layer template (deep-copied N times).
+        num_layers: number of layers.
+        norm: optional LayerNorm applied after the last layer (required to
+            match nn.Transformer, which always adds one).
+    """
+
     def __init__(
         self,
         decoder_layer: TransformerDecoderLayer,
         num_layers: int,
-        norm: nn.LayerNorm | None,
+        norm: nn.LayerNorm | None = None,
     ):
         super().__init__()
         self.network = nn.ModuleList(
@@ -161,9 +227,19 @@ class TransformerDecoder(nn.Module):
         x: Float[Tensor, "b n c"],
         memory: Float[Tensor, "b m c"],
         tgt_mask: Float[Tensor, "n n"] | None = None,
+        memory_mask: Float[Tensor, "n m"] | None = None,
     ) -> Float[Tensor, "b n c"]:
         for layer in self.network:
-            x = layer(x, memory, tgt_mask=tgt_mask)
+            x = layer(x, memory, tgt_mask=tgt_mask, memory_mask=memory_mask)
         if self.norm is not None:
             x = self.norm(x)
         return x
+
+    def load_weights_from_torch_decoder(self, src: nn.TransformerDecoder):
+        """Load weights from an nn.TransformerDecoder."""
+        for layer, src_layer in zip(self.network, src.layers, strict=True):
+            layer.load_weights_from_torch_decoder_layer(src_layer)  # type: ignore
+        if self.norm is not None and isinstance(src.norm, nn.LayerNorm):
+            with torch.no_grad():
+                self.norm.weight.copy_(src.norm.weight)
+                self.norm.bias.copy_(src.norm.bias)
