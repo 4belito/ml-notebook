@@ -27,7 +27,8 @@ def greedy_decode(
     source_mask: torch.Tensor,
     tokenizer_src: Tokenizer,
     tokenizer_tgt: Tokenizer,
-    max_len: int,
+    src_max_len: int,
+    tgt_max_len: int,
     device: torch.device,
 ):
     sos_idx = tokenizer_tgt.token_to_id("[SOS]")
@@ -38,13 +39,13 @@ def greedy_decode(
     # Initialize the decoder input with the sos token
     decoder_input = torch.empty(1, 1).fill_(sos_idx).type_as(source).to(device)
     while True:
-        if decoder_input.size(1) == max_len:
+        if decoder_input.size(1) == tgt_max_len:
             break
 
         # build mask for target
         decoder_mask = (
-            causal_mask(decoder_input.size(1)).type_as(source_mask).to(device)
-        )
+            causal_mask(decoder_input.size(1)).unsqueeze(0).to(device)
+        )  # (1, 1, step, step)
 
         # calculate output
         out = model.decode(decoder_input, encoder_output, decoder_mask, source_mask)
@@ -71,7 +72,8 @@ def run_validation(
     validation_ds: DataLoader,
     tokenizer_src: Tokenizer,
     tokenizer_tgt: Tokenizer,
-    max_len: int,
+    src_max_len: int,
+    tgt_max_len: int,
     device: torch.device,
     print_msg: Callable[[str], None],
     global_step: int,
@@ -109,7 +111,8 @@ def run_validation(
                 encoder_mask,
                 tokenizer_src,
                 tokenizer_tgt,
-                max_len,
+                src_max_len,
+                tgt_max_len,
                 device,
             )
 
@@ -354,7 +357,8 @@ def train_model(config):
             val_dataloader,
             tokenizer_src,
             tokenizer_tgt,
-            config["seq_len"],
+            config["src_seq_len"],
+            config["tgt_seq_len"],
             device,
             lambda msg: batch_iterator.write(msg),
             global_step,
