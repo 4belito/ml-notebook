@@ -95,9 +95,12 @@ class Transformer(nn.Module):
             device=device,
             dtype=dtype,
         )
-        norm_kw = {"eps": layer_norm_eps, "device": device, "dtype": dtype}
-        encoder_norm = nn.LayerNorm(d_model, **norm_kw)
-        decoder_norm = nn.LayerNorm(d_model, **norm_kw)
+        encoder_norm = nn.LayerNorm(
+            d_model, eps=layer_norm_eps, device=device, dtype=dtype
+        )
+        decoder_norm = nn.LayerNorm(
+            d_model, eps=layer_norm_eps, device=device, dtype=dtype
+        )
         self.encoder = T.TransformerEncoder(
             self.encoder_layer, num_layers=num_encoder_layers, norm=encoder_norm
         )
@@ -117,9 +120,6 @@ class Transformer(nn.Module):
         src_mask: torch.Tensor | None = None,
         tgt_mask: torch.Tensor | None = None,
         memory_mask: torch.Tensor | None = None,
-        src_key_padding_mask: torch.Tensor | None = None,
-        tgt_key_padding_mask: torch.Tensor | None = None,
-        memory_key_padding_mask: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -128,37 +128,15 @@ class Transformer(nn.Module):
             src_mask: additive mask for encoder self-attention (n, n).
             tgt_mask: additive mask for decoder self-attention (m, m).
             memory_mask: additive mask for decoder cross-attention (m, n).
-            src_key_padding_mask: padding mask added to src_mask (b, n) or (b, h, n, n).
-            tgt_key_padding_mask: padding mask added to tgt_mask (b, m) or (b, h, m, m).
-            memory_key_padding_mask: padding mask added to memory_mask.
 
         Returns:
             output tensor (b, m, d_model).
         """
-        memory = self.encoder(
-            src, mask=self._add_masks(src_mask, src_key_padding_mask)
-        )
+        memory = self.encoder(src, mask=src_mask)
         output = self.decoder(
             tgt,
             memory,
-            tgt_mask=self._add_masks(tgt_mask, tgt_key_padding_mask),
-            memory_mask=self._add_masks(memory_mask, memory_key_padding_mask),
+            tgt_mask=tgt_mask,
+            memory_mask=memory_mask,
         )
         return output
-
-    @staticmethod
-    def _add_masks(
-        mask1: torch.Tensor | None, mask2: torch.Tensor | None
-    ) -> torch.Tensor | None:
-        # nn.Transformer passes attention_mask and key_padding_mask separately,
-        # converting boolean padding masks (True → -inf) inside nn.MultiheadAttention.
-        # Here we merge by addition: float (0/-inf) key_padding_masks work correctly;
-        # boolean key_padding_masks do NOT (True adds 1, not -inf).
-        if mask1 is None and mask2 is None:
-            return None
-        elif mask1 is None:
-            return mask2
-        elif mask2 is None:
-            return mask1
-        else:
-            return mask1 + mask2

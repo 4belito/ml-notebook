@@ -8,7 +8,12 @@ from .activations.activations import (
     Sigmoid,
     Tanh,
 )
-from .attention.attention import MultiheadAttention, SelfAttention
+from .attention.attention import (
+    MultiheadAttention,
+    SelfAttention,
+    create_causal_mask,
+    create_random_mask,
+)
 from .embeddings.embedding import Embedding
 from .embeddings.fourier_encoding import FourierPositionalEncoding
 from .embeddings.rope import RotaryEmbedding
@@ -39,4 +44,6 @@ __all__ = [
     "FourierPositionalEncoding",
     "SinusoidalPE",
     "RotaryEmbedding",
+    "create_causal_mask",
+    "create_random_mask",
 ]

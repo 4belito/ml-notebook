@@ -47,5 +47,5 @@ class SinusoidalPE(nn.Module):
         self.register_buffer("pe", pe)
 
     def forward(self, x: Float[Tensor, "b n d"]) -> Float[Tensor, "b n d"]:
-        seq_len = x.size(0)
+        seq_len = x.size(1)
         return x + self.pe[:seq_len]

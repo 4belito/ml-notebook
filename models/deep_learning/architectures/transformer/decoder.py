@@ -94,7 +94,7 @@ class TransformerDecoderLayer(nn.Module):
         self.selfattn_dropout = nn.Dropout(dropout)
 
         # Block 2: Multi-Head Attention
-        self.multiheadattn = MultiheadAttention.from_torch_mha(
+        self.crossattn = MultiheadAttention.from_torch_mha(
             d_model,
             nhead,
             dropout=dropout,
@@ -102,10 +102,10 @@ class TransformerDecoderLayer(nn.Module):
             device=device,
             dtype=dtype,
         )
-        self.multiheadattn_norm = nn.LayerNorm(
+        self.crossattn_norm = nn.LayerNorm(
             d_model, eps=layer_norm_eps, device=device, dtype=dtype
         )
-        self.multiheadattn_dropout = nn.Dropout(dropout)
+        self.crossattn_dropout = nn.Dropout(dropout)
 
         # Block 3: Feedforward Network
         self.linear1 = nn.Linear(
@@ -132,29 +132,29 @@ class TransformerDecoderLayer(nn.Module):
     ) -> Float[Tensor, "b n c"]:
         if self.norm_first:
             y = self.selfattn_norm(x)
-            y = self.selfattn(y, attn_mask=mask)
+            y = self.selfattn(y, attn_mask=mask)[0]
             y = self.selfattn_dropout(y)
             return y + x
         else:
-            y = self.selfattn(x, attn_mask=mask)
+            y = self.selfattn(x, attn_mask=mask)[0]
             y = self.selfattn_dropout(y)
         return self.selfattn_norm(y + x)
 
-    def _forward_multiheadattn(
+    def _forward_crossattn(
         self,
         x: Float[Tensor, "b n c"],
         memory: Float[Tensor, "b m c"],
         mask: Float[Tensor, "n m"] | None = None,
     ) -> Float[Tensor, "b n c"]:
         if self.norm_first:
-            y = self.multiheadattn_norm(x)
-            y = self.multiheadattn(y, memory, memory, attn_mask=mask)
-            y = self.multiheadattn_dropout(y)
+            y = self.crossattn_norm(x)
+            y = self.crossattn(y, memory, memory, attn_mask=mask)[0]
+            y = self.crossattn_dropout(y)
             return y + x
         else:
-            y = self.multiheadattn(x, memory, memory, attn_mask=mask)
-            y = self.multiheadattn_dropout(y)
-        return self.multiheadattn_norm(y + x)
+            y = self.crossattn(x, memory, memory, attn_mask=mask)[0]
+            y = self.crossattn_dropout(y)
+        return self.crossattn_norm(y + x)
 
     def _forward_ffn(self, x: Float[Tensor, "b n c"]) -> Float[Tensor, "b n c"]:
         if self.norm_first:
@@ -179,14 +179,14 @@ class TransformerDecoderLayer(nn.Module):
             Decoded sequence (b, m, d_model).
         """
         x = self._forward_selfattn(x, mask=tgt_mask)
-        x = self._forward_multiheadattn(x, memory, mask=memory_mask)
+        x = self._forward_crossattn(x, memory, mask=memory_mask)
         x = self._forward_ffn(x)
         return x
 
     def load_weights_from_torch_decoder_layer(self, src: nn.TransformerDecoderLayer):
         """Load weights from an nn.TransformerDecoderLayer."""
         self.selfattn.load_weights_from_torch_mha(src.self_attn)
-        self.multiheadattn.load_weights_from_torch_mha(src.multihead_attn)
+        self.crossattn.load_weights_from_torch_mha(src.multihead_attn)
         with torch.no_grad():
             self.linear1.weight.copy_(src.linear1.weight)
             self.linear1.bias.copy_(src.linear1.bias)
@@ -194,8 +194,8 @@ class TransformerDecoderLayer(nn.Module):
             self.linear2.bias.copy_(src.linear2.bias)
             self.selfattn_norm.weight.copy_(src.norm1.weight)
             self.selfattn_norm.bias.copy_(src.norm1.bias)
-            self.multiheadattn_norm.weight.copy_(src.norm2.weight)
-            self.multiheadattn_norm.bias.copy_(src.norm2.bias)
+            self.crossattn_norm.weight.copy_(src.norm2.weight)
+            self.crossattn_norm.bias.copy_(src.norm2.bias)
             self.ffn_norm.weight.copy_(src.norm3.weight)
             self.ffn_norm.bias.copy_(src.norm3.bias)
 

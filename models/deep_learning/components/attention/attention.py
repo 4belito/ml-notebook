@@ -27,16 +27,16 @@ Discrepancies vs nn.MultiheadAttention:
       by nn.TransformerEncoderLayer internally with need_weights=False).
       Calling nn.MultiheadAttention directly with need_weights=True (the
       default) instead returns nan for those rows.
-    - key_padding_mask and is_causal are not supported; they must be
-      pre-merged into attn_mask by the caller (see Transformer._add_masks).
-    - need_weights is not supported; attention weights are never returned.
+    - attn_mask accepts bool (True=block, matches nn) or additive float
+      (0=attend, -inf=block); key_padding_mask and is_causal are not supported.
+    - Attention weights (b, h, m, n) are always returned alongside the output.
 """
 
 from __future__ import annotations
 
 import einops
 import torch
-from jaxtyping import Float
+from jaxtyping import Bool, Float
 from torch import Tensor, nn
 
 
@@ -45,6 +45,12 @@ class SelfAttention(nn.Module):
 
     Used by TransformerEncoderLayer and TransformerDecoderLayer so they work
     with a single input tensor instead of separate Q, K, V tensors.
+
+    Tensor dimension conventions:
+        b: batch size
+        n: sequence length
+        d: embedding dimension (mbed_dim); Q=K=V=x so input and output share it.
+        h: number of attention heads
 
     Args:
         mbed_dim: embedding dimension (d_model).
@@ -89,12 +95,15 @@ class SelfAttention(nn.Module):
 
     def forward(
         self,
-        x: Float[Tensor, "b n c"],
-        attn_mask: Float[Tensor, "n n"]
+        x: Float[Tensor, "b n d"],
+        attn_mask: Bool[Tensor, "n n"]
+        | Bool[Tensor, "(b*h) n n"]
+        | Bool[Tensor, "b h n n"]
+        | Float[Tensor, "n n"]
         | Float[Tensor, "(b*h) n n"]
         | Float[Tensor, "b h n n"]
         | None = None,
-    ):
+    ) -> tuple[Float[Tensor, "b n d"], Float[Tensor, "b h n n"]]:
         return self.mha(x, x, x, attn_mask=attn_mask)
 
 
@@ -243,23 +252,28 @@ class MultiheadAttention(nn.Module):
         Q: Float[Tensor, "b m cq"],
         K: Float[Tensor, "b n ck"],
         V: Float[Tensor, "b n cv"],
-        attn_mask: Float[Tensor, "m n"]
+        attn_mask: Bool[Tensor, "m n"]
+        | Bool[Tensor, "(b*h) m n"]
+        | Bool[Tensor, "b h m n"]
+        | Float[Tensor, "m n"]
         | Float[Tensor, "(b*h) m n"]
         | Float[Tensor, "b h m n"]
         | None = None,
-    ) -> Float[Tensor, "b m do"]:
+    ) -> tuple[Float[Tensor, "b m do"], Float[Tensor, "b h m n"]]:
         """Compute multi-head attention output.
 
         Args:
             Q: query tensor (b, m, cq).
             K: key tensor   (b, n, ck).
             V: value tensor (b, n, cv).
-            attn_mask: additive float mask added to scores before softmax.
+            attn_mask: mask applied to scores before softmax.
+                Bool (True=block, False=attend) or additive float (0=attend, -inf=block)
+                Matches nn.MultiheadAttention convention.
                 Shape (m, n), (b*h, m, n), or (b, h, m, n).
-                Fully-masked rows (all -inf) output a zero vector.
+                Fully-masked rows output a zero vector.
 
         Returns:
-            Attention output (b, m, do).
+            Attention output (b, m, do) and attention weights (b, h, m, n).
         """
         # Linear projections
         proj_q = self.q_proj(Q)  # Q=QW_q+1_Mb^T_q
@@ -290,7 +304,10 @@ class MultiheadAttention(nn.Module):
                     pass
                 case _:
                     raise ValueError("attn_mask has incorrect dimensions")
-            scores += attn_mask
+            if attn_mask.dtype == torch.bool:
+                scores = scores.masked_fill(attn_mask, float("-inf"))  # True=block
+            else:
+                scores = scores + attn_mask  # additive float: 0=attend, -inf=block
 
         # Numerically stable softmax(QK^T / sqrt(dk)).
         # Standard F.softmax fails for fully-masked rows: softmax([-inf,...])
@@ -304,11 +321,10 @@ class MultiheadAttention(nn.Module):
         # Clamp the denominator to avoid 0/0 for fully-masked rows → output 0.
         # This matches F.scaled_dot_product_attention (need_weights=False path).
         scores_scaled = scores / (self.dk**0.5)
-        row_max = scores_scaled.amax(dim=-1, keepdim=True).nan_to_num(neginf=0.0)
-        exp_s = (scores_scaled - row_max).exp()
-        attn = exp_s / exp_s.sum(dim=-1, keepdim=True).clamp(min=1e-9)
 
         # softmax(QK^T/sqrt(dk))V
+        # attn = scores_scaled.softmax(dim=-1).nan_to_num(neginf=0.0)
+        attn = self._softmax_scores(scores_scaled)
         attn = self.dropout(attn)
         o = torch.einsum("bhmn, bhnv -> bhmv", attn, r_v)
 
@@ -317,4 +333,25 @@ class MultiheadAttention(nn.Module):
 
         # Final linear projection
         proj_o = self.out_proj(r_o)
-        return proj_o
+        return proj_o, attn.mean(dim=1)  # average attention weights over heads
+
+    def _softmax_scores(self, scores: Tensor) -> Tensor:
+        """Compute softmax(QK^T / sqrt(dk)) with numerical stability fixes."""
+        row_max = scores.amax(dim=-1, keepdim=True).nan_to_num(neginf=0.0)
+        exp_s = (scores - row_max).exp()
+        attn = exp_s / exp_s.sum(dim=-1, keepdim=True).clamp(min=1e-9)
+        return attn
+
+
+def create_causal_mask(
+    shape: tuple[int, int], device: torch.device | None = None
+) -> Bool[Tensor, "m n"]:
+    """Bool causal mask: True = block future positions."""
+    return torch.triu(torch.ones(shape, dtype=torch.bool, device=device), diagonal=1)
+
+
+def create_random_mask(
+    shape: tuple[int, int], device: torch.device | None = None
+) -> Bool[Tensor, "m n"]:
+    """Bool mask with ~50% blocked positions. True = block."""
+    return torch.rand(shape, device=device) > 0.5

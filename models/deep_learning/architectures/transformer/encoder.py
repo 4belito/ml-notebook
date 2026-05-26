@@ -140,11 +140,11 @@ class TransformerEncoderLayer(nn.Module):
         # Equivalent to nn.TransformerEncoderLayer._sa_block wrapped with norm logic.
         if self.norm_first:
             y = self.selfattn_norm(x)
-            y = self.selfattn(y, attn_mask=mask)
+            y = self.selfattn(y, attn_mask=mask)[0]
             y = self.selfattn_dropout(y)
             return y + x
         else:
-            y = self.selfattn(x, attn_mask=mask)
+            y = self.selfattn(x, attn_mask=mask)[0]
             y = self.selfattn_dropout(y)
             return self.selfattn_norm(y + x)
 
