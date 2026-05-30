@@ -11,14 +11,23 @@ dtype = torch.float32
 
 
 class InputEmbedding(nn.Module):
-    def __init__(self, d_model: int, vocab_size: int):
+    def __init__(
+        self, embed_size: int, vocab_size: int, max_length: int, dropout: float = 0.1
+    ):
         super().__init__()
-        self.d_model = d_model
+        self.embed_size = embed_size
         self.vocab_size = vocab_size
-        self.word_embedding = nn.Embedding(vocab_size, d_model)
+        self.token_embedding = nn.Embedding(vocab_size, embed_size)
+        self.positional_encoding = comp.SinusoidalPE(
+            d_model=embed_size, max_len=max_length
+        )
+        self.dropout = nn.Dropout(dropout)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.word_embedding(x) * math.sqrt(self.d_model)
+        x = self.token_embedding(x) * math.sqrt(self.embed_size)
+        x = self.positional_encoding(x)
+        x = self.dropout(x)
+        return x
 
 
 class Projection(nn.Module):
@@ -29,7 +38,9 @@ class Projection(nn.Module):
         self.head = nn.Linear(d_model, vocab_size)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.head(x)  # raw logits — CrossEntropyLoss applies log_softmax internally
+        return self.head(
+            x
+        )  # raw logits — CrossEntropyLoss applies log_softmax internally
 
 
 class Translator(nn.Module):
@@ -49,10 +60,11 @@ class Translator(nn.Module):
         super().__init__()
 
         # Encoder
-        self.src_embedding = nn.Sequential(
-            InputEmbedding(d_model=embed_size, vocab_size=src_vocab_size),
-            comp.SinusoidalPE(d_model=embed_size, max_len=src_max_length),
-            nn.Dropout(0.1),
+        self.src_embedding = InputEmbedding(
+            embed_size=embed_size,
+            vocab_size=src_vocab_size,
+            max_length=src_max_length,
+            dropout=dropout,
         )
         self.encoder_layer = mynn.TransformerEncoderLayer(
             d_model=embed_size,
@@ -67,11 +79,13 @@ class Translator(nn.Module):
         )
 
         # Decoder
-        self.tgt_embedding = nn.Sequential(
-            InputEmbedding(d_model=embed_size, vocab_size=tgt_vocab_size),
-            comp.SinusoidalPE(d_model=embed_size, max_len=tgt_max_length),
-            nn.Dropout(0.1),
+        self.tgt_embedding = InputEmbedding(
+            embed_size=embed_size,
+            vocab_size=tgt_vocab_size,
+            max_length=tgt_max_length,
+            dropout=dropout,
         )
+
         self.decoder_layer = mynn.TransformerDecoderLayer(
             d_model=embed_size,
             nhead=heads,
@@ -86,22 +100,8 @@ class Translator(nn.Module):
 
         # Final linear layer
         self.projection = Projection(d_model=embed_size, vocab_size=tgt_vocab_size)
+
         self.device = device
-
-    # def make_src_mask(self, src: torch.Tensor) -> torch.Tensor:
-    #     # src: (N, src_len)
-    #     src_mask = (src != self.src_pad_idx).unsqueeze(1).unsqueeze(2)
-    #     # src_mask: (N, 1, 1, src_len)
-    #     return src_mask.to(self.device)
-
-    # def make_tgt_mask(self, tgt: torch.Tensor) -> torch.Tensor:
-    #     # tgt: (N, tgt_len)
-    #     N, tgt_len = tgt.shape
-    #     tgt_mask = torch.tril(
-    #         torch.ones((tgt_len, tgt_len), device=self.device)
-    #     ).expand(N, 1, tgt_len, tgt_len)
-    #     # tgt_mask: (N, 1, tgt_len, tgt_len)
-    #     return tgt_mask
 
     def encode(self, src: torch.Tensor, src_mask: torch.Tensor) -> torch.Tensor:
         return self.encoder(self.src_embedding(src), mask=src_mask)
@@ -130,9 +130,6 @@ class Translator(nn.Module):
         src_mask: torch.Tensor,
         tgt_mask: torch.Tensor,
     ) -> torch.Tensor:
-        # src_mask = self.make_src_mask(src)
-        # tgt_mask = self.make_tgt_mask(tgt)
-
         enc_src = self.encode(src, src_mask)
         dec_output = self.decode(tgt, enc_src, tgt_mask, src_mask)
         output = self.project(dec_output)

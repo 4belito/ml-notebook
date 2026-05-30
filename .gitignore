@@ -1,4 +1,5 @@
 .venv/
+.env
 __pycache__/
 raw_data/
 *.pyc
@@ -9,3 +10,7 @@ raw_data/
 
 system_info.ipynb
 data/Information Theory/Raymond W. Yeung (auth.) - A First Course in Information Theory (2002, Springer).pdf
+
+models/deep_learning/architectures/transformer/tasks/translation/Helsinki-NLP/
+models/deep_learning/architectures/transformer/tasks/translation/runs/
+models/deep_learning/architectures/transformer/tasks/translation/tokenizer_??.json
