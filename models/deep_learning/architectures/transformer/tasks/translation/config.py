@@ -19,7 +19,7 @@ class Config:
 
     @property
     def model_folder(self) -> str:
-        return f"weights_{self.src_lang}_{self.tgt_lang}"
+        return f"{self.datasource}_weights_{self.src_lang}_{self.tgt_lang}"
 
     @property
     def experiment_name(self) -> str:
@@ -33,18 +33,12 @@ class Config:
     def tokenizer_tgt_file(self) -> str:
         return f"tokenizer_{self.tgt_lang}.json"
 
+    def get_weights_file_path(self, epoch: str) -> str:
+        return f"{self.model_folder}/{self.model_basename}{epoch}.pt"
 
-def get_weights_file_path(config: Config, epoch: str) -> str:
-    model_folder = f"{config.datasource}_{config.model_folder}"
-    model_filename = f"{config.model_basename}{epoch}.pt"
-    return str(Path(".") / model_folder / model_filename)
-
-
-def latest_weights_file_path(config: Config) -> str | None:
-    model_folder = f"{config.datasource}_{config.model_folder}"
-    model_filename = f"{config.model_basename}*"
-    weights_files = list(Path(model_folder).glob(model_filename))
-    if len(weights_files) == 0:
-        return None
-    weights_files.sort()
-    return str(weights_files[-1])
+    def latest_weights_file_path(self) -> str | None:
+        weights_files = list(Path(self.model_folder).glob(f"{self.model_basename}*"))
+        if len(weights_files) == 0:
+            return None
+        weights_files.sort()
+        return str(weights_files[-1])

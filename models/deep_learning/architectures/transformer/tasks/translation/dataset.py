@@ -153,12 +153,49 @@ class BilingualDataset(Dataset[dict[str, torch.Tensor | str]]):
         }
 
 
+def _filter_by_length(
+    raw_ds: TranslationHFDataset,
+    tokenizer_src: Tokenizer,
+    tokenizer_tgt: Tokenizer,
+    config: Config,
+    verbose: bool = True,
+) -> TranslationHFDataset:
+    """Drop rows whose token length would overflow BilingualDataset's fixed seq_len."""
+    if verbose:
+        original_len = len(raw_ds)
+
+    raw_ds = raw_ds.filter(
+        lambda x: (
+            len(tokenizer_src.encode(x["translation"][config.src_lang]).ids)
+            <= config.src_seq_len - 2
+            and len(tokenizer_tgt.encode(x["translation"][config.tgt_lang]).ids)
+            <= config.tgt_seq_len - 1
+        )
+    )
+
+    if verbose:
+        filtered_len = len(raw_ds)
+        removal_percentage = (original_len - filtered_len) / original_len * 100
+        print(f"Original dataset size: {original_len}")
+        print(f"Filtered dataset size: {filtered_len}")
+        print(
+            f"Removed: {original_len - filtered_len} samples "
+            f"({removal_percentage:.2f}%)"
+        )
+
+    return raw_ds
+
+
 def create_dataloaders(
     raw_ds: TranslationHFDataset,
     tokenizer_src: Tokenizer,
     tokenizer_tgt: Tokenizer,
     config: Config,
+    verbose: bool = True,
 ):
+    raw_ds = _filter_by_length(
+        raw_ds, tokenizer_src, tokenizer_tgt, config, verbose=verbose
+    )
     train_ds_size = int(config.train_size * len(raw_ds))
     val_ds_size = len(raw_ds) - train_ds_size
 

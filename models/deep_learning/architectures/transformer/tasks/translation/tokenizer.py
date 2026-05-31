@@ -24,10 +24,22 @@ def build_tokenizer(ds: TranslationHFDataset, lang: str):
     return tokenizer
 
 
+_REQUIRED_TOKENS = ("[UNK]", "[PAD]", "[SOS]", "[EOS]")
+
+
+def _validate_tokenizer(tokenizer: Tokenizer, lang: str) -> None:
+    missing = [t for t in _REQUIRED_TOKENS if tokenizer.token_to_id(t) is None]
+    if missing:
+        raise ValueError(
+            f"Tokenizer for '{lang}' is missing required special tokens: {missing}"
+        )
+
+
 def get_or_build_tokenizer(tokenizer_path: Path, ds: TranslationHFDataset, lang: str):
     if not Path.exists(tokenizer_path):
         tokenizer = build_tokenizer(ds, lang)
         tokenizer.save(str(tokenizer_path))
     else:
         tokenizer = Tokenizer.from_file(str(tokenizer_path))
+    _validate_tokenizer(tokenizer, lang)
     return tokenizer
