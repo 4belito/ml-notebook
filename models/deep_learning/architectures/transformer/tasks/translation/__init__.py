@@ -1,3 +1,5 @@
+from helpers import clear_cache, get_device
+
 from .config import Config
 from .dataset import (
     BilingualDataset,
@@ -6,7 +8,6 @@ from .dataset import (
     causal_mask,
     create_dataloaders,
 )
-from .helpers import clear_cache, get_device
 from .inference import greedy_decode, run_validation
 from .model import Translator
 from .tokenizer import get_or_build_tokenizer

@@ -32,9 +32,10 @@
   // C4   | Pythonic patterns (comprenhensions, context managers, etc.)
   
   // =========================
-  // --- Python type checking 
+  // --- Python type checking
   // =========================
   "python.analysis.typeCheckingMode": "strict",
+  "mypy-type-checker.importStrategy": "fromEnvironment",
 
   // Reduce noise from ML / dynamic libraries
   "python.analysis.diagnosticSeverityOverrides": {

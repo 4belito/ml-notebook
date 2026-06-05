@@ -21,6 +21,12 @@ dependencies = [
     "python-dotenv>=1.2.2",
 ]
 
+[dependency-groups]
+dev = [
+    "ruff>=0.13.2",
+    "pyright>=1.1.407",
+]
+
 [tool.ruff.lint]
 ignore = ["F722"]  # jaxtyping shape strings are not valid Python expressions
 
