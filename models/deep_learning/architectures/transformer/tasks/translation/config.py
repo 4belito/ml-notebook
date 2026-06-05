@@ -10,6 +10,7 @@ class Config:
     src_seq_len: int
     tgt_seq_len: int
     d_model: int
+    dropout: float
     datasource: str
     src_lang: str
     tgt_lang: str
