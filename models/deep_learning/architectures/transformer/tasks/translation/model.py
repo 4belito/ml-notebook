@@ -6,9 +6,6 @@ import torch.nn as nn
 import models.deep_learning.architectures as mynn
 import models.deep_learning.components as comp
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-dtype = torch.float32
-
 
 class InputEmbedding(nn.Module):
     def __init__(
@@ -16,7 +13,6 @@ class InputEmbedding(nn.Module):
     ):
         super().__init__()
         self.embed_size = embed_size
-        self.vocab_size = vocab_size
         self.token_embedding = nn.Embedding(vocab_size, embed_size)
         self.positional_encoding = comp.SinusoidalPE(
             d_model=embed_size, max_len=max_length
@@ -33,14 +29,10 @@ class InputEmbedding(nn.Module):
 class Projection(nn.Module):
     def __init__(self, d_model: int, vocab_size: int):
         super().__init__()
-        self.d_model = d_model
-        self.vocab_size = vocab_size
         self.head = nn.Linear(d_model, vocab_size)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.head(
-            x
-        )  # raw logits — CrossEntropyLoss applies log_softmax internally
+        return self.head(x)  # CrossEntropyLoss applies log_softmax internally
 
 
 class Translator(nn.Module):
@@ -85,7 +77,6 @@ class Translator(nn.Module):
             max_length=tgt_max_length,
             dropout=dropout,
         )
-
         self.decoder_layer = mynn.TransformerDecoderLayer(
             d_model=embed_size,
             nhead=heads,
@@ -100,8 +91,6 @@ class Translator(nn.Module):
 
         # Final linear layer
         self.projection = Projection(d_model=embed_size, vocab_size=tgt_vocab_size)
-
-        self.device = device
 
     def encode(self, src: torch.Tensor, src_mask: torch.Tensor) -> torch.Tensor:
         return self.encoder(self.src_embedding(src), mask=src_mask)
@@ -132,6 +121,4 @@ class Translator(nn.Module):
     ) -> torch.Tensor:
         enc_src = self.encode(src, src_mask)
         dec_output = self.decode(tgt, enc_src, tgt_mask, src_mask)
-        output = self.project(dec_output)
-
-        return output
+        return self.project(dec_output)

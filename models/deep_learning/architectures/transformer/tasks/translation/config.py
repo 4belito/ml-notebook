@@ -10,10 +10,14 @@ class Config:
     src_seq_len: int
     tgt_seq_len: int
     d_model: int
+    n_heads: int
+    num_layers: int
+    forward_dim: int
+    droptout: float
     datasource: str
     src_lang: str
     tgt_lang: str
-    preload: str = "latest"
+    preload: str | None = "latest"
     model_basename: str = "tmodel_"
     train_size: float = 0.9
 

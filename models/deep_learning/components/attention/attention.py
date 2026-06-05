@@ -332,7 +332,7 @@ class MultiheadAttention(nn.Module):
         r_o = einops.rearrange(o, "b h m dv -> b m (h dv)")
 
         # Final linear projection
-        proj_o = self.out_proj(r_o)
+        proj_o = self.out_proj(r_o)  #
         return proj_o, attn.mean(dim=1)  # average attention weights over heads
 
     def _softmax_scores(self, scores: Tensor) -> Tensor:
