@@ -2,9 +2,9 @@
 
 from pathlib import Path
 
-# ROOT_DIR = Path(__file__).parent.parent
-ROOT_DIR = Path("/lustre") / Path.home().name / "ml-notebook"
-ROOT_DIR.mkdir(parents=True, exist_ok=True)
+ROOT_DIR = Path(__file__).parent.parent
+# ROOT_DIR = Path("/lustre") / Path.home().name / "ml-notebook"
+# ROOT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 DATA_DIR = ROOT_DIR / "data"
