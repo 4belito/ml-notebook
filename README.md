@@ -31,3 +31,12 @@ After cloning the repository, run:
 ```bash
 uv sync
 uv pip install -e .
+```
+
+## Before Commit (Notebooks)
+
+Clear all notebook outputs before committing:
+
+```bash
+find . -type f -name "*.ipynb" -not -path "*/.ipynb_checkpoints/*" -exec uv run --group dev jupyter nbconvert --clear-output --inplace {} +
+```

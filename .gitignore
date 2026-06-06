@@ -1,16 +1,21 @@
 .venv/
 .env
 __pycache__/
-raw_data/
+uv.lock
 *.pyc
 .DS_Store
 *.egg-info/
 .python-version
+uv.lock
 
 
-system_info.ipynb
-data/Information Theory/Raymond W. Yeung (auth.) - A First Course in Information Theory (2002, Springer).pdf
+data/external/
+data/cache/
+runs/
+weights/
+
 
 models/deep_learning/architectures/transformer/tasks/translation/Helsinki-NLP/
 models/deep_learning/architectures/transformer/tasks/translation/runs/
 models/deep_learning/architectures/transformer/tasks/translation/tokenizer_??.json
+

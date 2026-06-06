@@ -59,7 +59,9 @@
   },
   "notebook.formatOnSave.enabled": true, // auto-format notebooks on save
   "jupyter.askForKernelRestart": false, // manual control of kernel restarts
+  "jupyter.notebookFileRoot": "${workspaceFolder}",
   "notebook.lineNumbers": "on",
+  
 
   // =========================
   // --- Git ---
