@@ -3,8 +3,8 @@ import math
 import torch
 import torch.nn as nn
 
-import src.models.deep_learning.architectures as mynn
-import src.models.deep_learning.components as comp
+import models.deep_learning.architectures as mynn
+import models.deep_learning.components as comp
 
 
 class InputEmbedding(nn.Module):

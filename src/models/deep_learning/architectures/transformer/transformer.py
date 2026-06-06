@@ -31,7 +31,7 @@ Discrepancies vs nn.Transformer:
 import torch
 import torch.nn as nn
 
-import src.models.deep_learning.architectures.transformer as T
+import models.deep_learning.architectures.transformer as T
 
 
 class Transformer(nn.Module):

@@ -41,7 +41,7 @@ import torch
 from jaxtyping import Float
 from torch import Tensor, nn
 
-from src.models.deep_learning.components import MultiheadAttention, SelfAttention
+from models.deep_learning.components import MultiheadAttention, SelfAttention
 
 
 class TransformerDecoderLayer(nn.Module):

@@ -20,7 +20,7 @@ def train(
     tokenizer_tgt: Tokenizer,
     device: torch.device,
     config: Config,
-    writer: SummaryWriter,
+    writer: SummaryWriter | None,
 ) -> None:
     optimizer = torch.optim.Adam(model.parameters(), lr=config.lr, eps=1e-9)
 
@@ -35,7 +35,7 @@ def train(
 
     if model_filename:
         print(f"Preloading model {model_filename}")
-        state = torch.load(model_filename)
+        state = torch.load(model_filename, map_location=device)
         model.load_state_dict(state["model_state_dict"])
         initial_epoch = state["epoch"] + 1
         optimizer.load_state_dict(state["optimizer_state_dict"])
@@ -48,13 +48,19 @@ def train(
         raise ValueError("PAD token not found in the source tokenizer vocabulary")
     loss_fn = nn.CrossEntropyLoss(ignore_index=PAD_IDX, label_smoothing=0.1).to(device)
     tgt_vocab_size = tokenizer_tgt.get_vocab_size()
+    writer_enabled = writer is not None
+
+    def disable_writer(exc: Exception) -> None:
+        nonlocal writer, writer_enabled
+        if writer_enabled:
+            print(f"TensorBoard disabled due to logging error: {exc}")
+            writer_enabled = False
+            writer = None
 
     for epoch in range(initial_epoch, config.num_epochs):
         model.train()
         batch_iterator = tqdm(train_dataloader, desc=f"Processing Epoch {epoch:02d}")
-        for i, batch in enumerate(batch_iterator):
-            if i > 3:
-                break
+        for batch in batch_iterator:
             encoder_input = batch["encoder_input"].to(device)
             decoder_input = batch["decoder_input"].to(device)
             encoder_mask = batch["encoder_mask"].to(device)
@@ -72,7 +78,11 @@ def train(
             )
 
             batch_iterator.set_postfix({"loss": f"{loss.item():6.3f}"})
-            writer.add_scalar("train loss", loss.item(), global_step)
+            if writer_enabled and writer is not None:
+                try:
+                    writer.add_scalar("train loss", loss.item(), global_step)
+                except (OSError, RuntimeError) as exc:
+                    disable_writer(exc)
 
             loss.backward()
             optimizer.step()
@@ -80,18 +90,35 @@ def train(
 
             global_step += 1
 
-        writer.flush()
+        if writer_enabled and writer is not None:
+            try:
+                writer.flush()
+            except (OSError, RuntimeError) as exc:
+                disable_writer(exc)
 
-        run_validation(
-            model,
-            val_dataloader,
-            tokenizer_tgt,
-            config.tgt_seq_len,
-            device,
-            lambda msg: batch_iterator.write(msg),  # noqa: B023
-            global_step,
-            writer,
-        )
+        try:
+            run_validation(
+                model,
+                val_dataloader,
+                tokenizer_tgt,
+                config.tgt_seq_len,
+                device,
+                lambda msg: batch_iterator.write(msg),  # noqa: B023
+                global_step,
+                writer if writer_enabled else None,
+            )
+        except (OSError, RuntimeError) as exc:
+            disable_writer(exc)
+            run_validation(
+                model,
+                val_dataloader,
+                tokenizer_tgt,
+                config.tgt_seq_len,
+                device,
+                lambda msg: batch_iterator.write(msg),  # noqa: B023
+                global_step,
+                None,
+            )
 
         model_filename = config.get_weights_file_path(f"{epoch:02d}")
         torch.save(
