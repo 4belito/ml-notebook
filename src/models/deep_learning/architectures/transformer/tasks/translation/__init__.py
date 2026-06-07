@@ -8,7 +8,7 @@ from .dataset import (
     causal_mask,
     create_dataloaders,
 )
-from .inference import greedy_decode, run_validation
+from .inference import greedy_decode, run_validation, translate_text
 from .model import Translator
 from .tokenizer import get_or_build_tokenizer
 from .train import train
@@ -23,6 +23,7 @@ __all__ = [
     "get_or_build_tokenizer",
     "greedy_decode",
     "run_validation",
+    "translate_text",
     "train",
     "Translator",
     "TranslationHFDataset",

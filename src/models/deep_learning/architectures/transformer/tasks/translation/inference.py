@@ -17,6 +17,40 @@ wer_metric = torchmetrics.text.WordErrorRate()
 bleu_metric = torchmetrics.text.BLEUScore()
 
 
+def _build_source_inputs(
+    text: str,
+    tokenizer_src: Tokenizer,
+    src_seq_len: int,
+    device: torch.device,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    src_pad_idx = tokenizer_src.token_to_id("[PAD]")
+    src_sos_idx = tokenizer_src.token_to_id("[SOS]")
+    src_eos_idx = tokenizer_src.token_to_id("[EOS]")
+
+    if src_pad_idx is None or src_sos_idx is None or src_eos_idx is None:
+        raise ValueError("Source tokenizer is missing one of [PAD], [SOS], [EOS].")
+
+    src_ids = tokenizer_src.encode(text).ids
+    if len(src_ids) > src_seq_len - 2:
+        raise ValueError(
+            f"Input is too long ({len(src_ids)} tokens). "
+            f"Max allowed is {src_seq_len - 2}."
+        )
+
+    encoder_input = torch.full(
+        (src_seq_len,), src_pad_idx, dtype=torch.int64, device=device
+    )
+    encoder_input[0] = src_sos_idx
+    encoder_input[1 : 1 + len(src_ids)] = torch.tensor(
+        src_ids, dtype=torch.int64, device=device
+    )
+    encoder_input[1 + len(src_ids)] = src_eos_idx
+
+    source = encoder_input.unsqueeze(0)
+    source_mask = (source == src_pad_idx).unsqueeze(1).unsqueeze(1)
+    return source, source_mask
+
+
 def greedy_decode(
     model: Translator,
     source: torch.Tensor,
@@ -27,9 +61,8 @@ def greedy_decode(
 ) -> torch.Tensor:
     sos_idx = tokenizer_tgt.token_to_id("[SOS]")
     eos_idx = tokenizer_tgt.token_to_id("[EOS]")
-    # Both are guaranteed non-None by get_or_build_tokenizer validation
-    assert sos_idx is not None
-    assert eos_idx is not None
+    if sos_idx is None or eos_idx is None:
+        raise ValueError("Target tokenizer is missing one of [SOS], [EOS].")
 
     encoder_output = model.encode(source, source_mask)
     tokens: list[int] = [sos_idx]
@@ -40,13 +73,42 @@ def greedy_decode(
 
         out = model.decode(decoder_input, encoder_output, decoder_mask, source_mask)
         prob = model.project(out[:, -1])
-        next_word = torch.max(prob, dim=1).indices.item()
-        tokens.append(next_word)  # type: ignore[arg-type]
+        next_word = int(torch.max(prob, dim=1).indices.item())
+        tokens.append(next_word)
 
         if next_word == eos_idx:
             break
 
     return torch.tensor(tokens, dtype=source.dtype, device=device)
+
+
+def translate_text(
+    model: Translator,
+    text: str,
+    tokenizer_src: Tokenizer,
+    tokenizer_tgt: Tokenizer,
+    src_seq_len: int,
+    tgt_max_len: int,
+    device: torch.device,
+) -> str:
+    source, source_mask = _build_source_inputs(
+        text=text,
+        tokenizer_src=tokenizer_src,
+        src_seq_len=src_seq_len,
+        device=device,
+    )
+
+    with torch.no_grad():
+        output_tokens = greedy_decode(
+            model=model,
+            source=source,
+            source_mask=source_mask,
+            tokenizer_tgt=tokenizer_tgt,
+            tgt_max_len=tgt_max_len,
+            device=device,
+        )
+
+    return tokenizer_tgt.decode(output_tokens.detach().cpu().tolist())
 
 
 def run_validation(

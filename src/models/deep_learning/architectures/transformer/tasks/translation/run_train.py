@@ -1,9 +1,10 @@
-# %% [markdown]
-# # Translation Task
-#
-# [video](https://www.youtube.com/watch?v=ISNdQcPhsts)
+# RUN 
+# There is no arguments handled by argparse, this is just a version of the 
+# training part of the translation notebook that can be run as a script. 
+# To run:
+# cd ~/ml-notebook/src
+# python -m models.deep_learning.architectures.transformer.tasks.translation.run_train
 
-# %%
 import os
 import shutil
 from pathlib import Path
@@ -31,7 +32,6 @@ CONFIG = trn.Config(
 )
 
 
-# %%
 def _build_writer(log_dir: str) -> SummaryWriter:
     """Prefer local node storage for TensorBoard events to avoid Lustre I/O issues."""
     user = os.environ.get("USER", "user")
@@ -48,18 +48,12 @@ def _build_writer(log_dir: str) -> SummaryWriter:
 writer = _build_writer(CONFIG.experiment_name)
 Path(CONFIG.weights_folder).mkdir(parents=True, exist_ok=True)
 
-
-# %%
 raw_ds = trn.TranslationHFDataset.load_dataset(
     path=CONFIG.datasource,
     name=f"{CONFIG.src_lang}-{CONFIG.tgt_lang}",
     split="train",
 )
 
-# %% [markdown]
-# ## Tokenization
-
-# %%
 src_file = Path(CONFIG.tokenizer_src_file)
 tgt_file = Path(CONFIG.tokenizer_tgt_file)
 
@@ -72,25 +66,17 @@ for p in (src_file, tgt_file):
 tokenizer_src = trn.get_or_build_tokenizer(src_file, raw_ds, CONFIG.src_lang)
 tokenizer_tgt = trn.get_or_build_tokenizer(tgt_file, raw_ds, CONFIG.tgt_lang)
 
-# %%
 src_file = Path(CONFIG.tokenizer_src_file)
 tgt_file = Path(CONFIG.tokenizer_tgt_file)
 src_file.parent.mkdir(parents=True, exist_ok=True)
 tokenizer_src = trn.get_or_build_tokenizer(src_file, raw_ds, CONFIG.src_lang)
 tokenizer_tgt = trn.get_or_build_tokenizer(tgt_file, raw_ds, CONFIG.tgt_lang)
 
-# %% [markdown]
-# ## Create dataloaders
 
-# %%
 train_dataloader, val_dataloader = trn.create_dataloaders(
     raw_ds, tokenizer_src, tokenizer_tgt, CONFIG
 )
 
-# %% [markdown]
-# ## Create model
-
-# %%
 model = trn.Translator(
     src_vocab_size=tokenizer_src.get_vocab_size(),
     tgt_vocab_size=tokenizer_tgt.get_vocab_size(),
@@ -100,10 +86,6 @@ model = trn.Translator(
     embed_size=CONFIG.d_model,
 ).to(device)
 
-# %% [markdown]
-# ## Train the model
-
-# %%
 trn.train(
     model=model,
     train_dataloader=train_dataloader,
