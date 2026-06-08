@@ -7,7 +7,7 @@ uv.lock
 *.egg-info/
 .python-version
 uv.lock
-
+system_info.ipynb
 
 data/external/
 data/cache/
