@@ -5,7 +5,9 @@
 # cd ~/ml-notebook/src
 # python -m models.deep_learning.architectures.transformer.tasks.translation.run_train
 
+import os
 import shutil
+import sys
 from pathlib import Path
 
 import torch
@@ -16,10 +18,10 @@ from torch.utils.data import DistributedSampler
 import models.deep_learning.architectures.transformer.tasks.translation as trn
 from helpers import build_writer, get_device, setup_ddp
 
-DDP_training = False
+DDP_training = True
 CONFIG = trn.Config(
     batch_size=8,
-    num_epochs=50,
+    num_epochs=5,
     lr=1e-4,
     src_seq_len=350,
     tgt_seq_len=350,
@@ -28,24 +30,39 @@ CONFIG = trn.Config(
     datasource="Helsinki-NLP/opus_books",
     src_lang="en",
     tgt_lang="es",
-    model_basename="tmodel_",
+    model_basename="testmodel2_",
 )
 
 load_dotenv()
-rank = 0  # overwritten by setup_ddp() when DDP_training=True
+rank, local_rank, world_size = 0, 0, 1
 if DDP_training:
     rank, local_rank, world_size = setup_ddp()
+    DDP_training = world_size > 1
+
+if DDP_training:
     device = torch.device(f"cuda:{local_rank}")
 else:
     device = get_device()
 
+# Redirect stdout/stderr on non-root ranks so only rank 0 produces output.
+# Use os.dup2 to redirect at the file-descriptor level so C extensions
+# (HF Hub, NCCL, tqdm) are also silenced, not just Python-level writes.
+if rank != 0:
+    _devnull = os.open(os.devnull, os.O_WRONLY)
+    os.dup2(_devnull, sys.stdout.fileno())
+    os.dup2(_devnull, sys.stderr.fileno())
+    os.close(_devnull)
+    sys.stdout = open(os.devnull, "w")
+    sys.stderr = open(os.devnull, "w")
+
 
 writer = build_writer(CONFIG.experiment_name) if rank == 0 else None
 
-## Data Preparation (only to the first process(rank == 0) if DDP_training)
+## Data Preparation
 if not DDP_training or rank == 0:
     Path(CONFIG.weights_folder).mkdir(parents=True, exist_ok=True)
 
+# All ranks load the dataset (HF caches it locally, no redundant downloads)
 raw_ds = trn.TranslationHFDataset.load_dataset(
     path=CONFIG.datasource,
     name=f"{CONFIG.src_lang}-{CONFIG.tgt_lang}",
@@ -74,7 +91,7 @@ tokenizer_tgt = trn.get_or_build_tokenizer(tgt_file, raw_ds, CONFIG.tgt_lang)
 
 
 train_ds, val_ds = trn.create_bilingual_datasets(
-    raw_ds, tokenizer_src, tokenizer_tgt, CONFIG, verbose=True
+    raw_ds, tokenizer_src, tokenizer_tgt, CONFIG, verbose=(rank == 0)
 )
 
 train_sampler = (
