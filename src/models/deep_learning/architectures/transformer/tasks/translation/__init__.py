@@ -3,6 +3,7 @@ from helpers import clear_cache, get_device
 from .config import Config
 from .dataset import (
     BilingualDataset,
+    BilingualSample,
     TranslationHFDataset,
     TranslationRow,
     causal_mask,
@@ -16,6 +17,7 @@ from .train import train
 __all__ = [
     "Config",
     "BilingualDataset",
+    "BilingualSample",
     "causal_mask",
     "clear_cache",
     "create_dataloaders",

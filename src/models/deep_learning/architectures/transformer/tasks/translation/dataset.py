@@ -11,6 +11,7 @@ from torch.utils.data import DataLoader, Dataset, random_split
 from .config import Config
 
 TranslationRow = dict[str, dict[str, str]]
+BilingualSample = dict[str, torch.Tensor | str]
 
 
 class TranslationHFDataset(Dataset[TranslationRow]):
@@ -40,7 +41,7 @@ class TranslationHFDataset(Dataset[TranslationRow]):
         )
 
 
-class BilingualDataset(Dataset[dict[str, torch.Tensor | str]]):
+class BilingualDataset(Dataset[BilingualSample]):
     def __init__(
         self,
         ds: Dataset[TranslationRow],

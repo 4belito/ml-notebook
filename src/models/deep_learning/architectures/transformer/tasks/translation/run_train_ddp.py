@@ -32,6 +32,8 @@ from models.deep_learning.architectures.transformer.tasks.translation.train_ddp 
     train_ddp,
 )
 
+from .dataset import BilingualSample
+
 
 def _setup_ddp() -> tuple[int, int, int]:
     rank = int(os.environ["SLURM_PROCID"])
@@ -58,9 +60,9 @@ def _create_ddp_dataloaders(
     rank: int,
     world_size: int,
 ) -> tuple[
-    DataLoader[dict[str, torch.Tensor | str]],
-    DataLoader[dict[str, torch.Tensor | str]],
-    DistributedSampler,
+    DataLoader[BilingualSample],
+    DataLoader[BilingualSample],
+    DistributedSampler[BilingualSample],
 ]:
     raw_ds = raw_ds.filter(
         lambda x: (

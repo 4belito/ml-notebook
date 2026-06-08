@@ -8,14 +8,15 @@ from torch.utils.tensorboard import SummaryWriter  # type: ignore[import-untyped
 from tqdm import tqdm  # type: ignore[import-untyped]
 
 from .config import Config
+from .dataset import BilingualSample
 from .inference import run_validation
 from .model import Translator
 
 
 def train(
     model: Translator,
-    train_dataloader: DataLoader[dict[str, torch.Tensor | str]],
-    val_dataloader: DataLoader[dict[str, torch.Tensor | str]],
+    train_dataloader: DataLoader[BilingualSample],
+    val_dataloader: DataLoader[BilingualSample],
     tokenizer_src: Tokenizer,
     tokenizer_tgt: Tokenizer,
     device: torch.device,

@@ -10,20 +10,21 @@ from torch.utils.tensorboard import SummaryWriter  # type: ignore[import-untyped
 from tqdm import tqdm  # type: ignore[import-untyped]
 
 from .config import Config
+from .dataset import BilingualSample
 from .inference import run_validation
 
 
 def train_ddp(
     model: DDP,
-    train_dataloader: DataLoader[dict[str, torch.Tensor | str]],
-    val_dataloader: DataLoader[dict[str, torch.Tensor | str]],
+    train_dataloader: DataLoader[BilingualSample],
+    val_dataloader: DataLoader[BilingualSample],
     tokenizer_src: Tokenizer,
     tokenizer_tgt: Tokenizer,
     device: torch.device,
     config: Config,
     writer: SummaryWriter | None,
     rank: int,
-    train_sampler: DistributedSampler,
+    train_sampler: DistributedSampler[BilingualSample],
 ) -> None:
     optimizer = torch.optim.Adam(model.parameters(), lr=config.lr, eps=1e-9)
 
