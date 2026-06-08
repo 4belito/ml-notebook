@@ -39,10 +39,7 @@ if DDP_training:
     rank, local_rank, world_size = setup_ddp()
     DDP_training = world_size > 1
 
-if DDP_training:
-    device = torch.device(f"cuda:{local_rank}")
-else:
-    device = get_device()
+device = torch.device(f"cuda:{local_rank}") if DDP_training else get_device()
 
 # Redirect stdout/stderr on non-root ranks so only rank 0 produces output.
 # Use os.dup2 to redirect at the file-descriptor level so C extensions
@@ -52,8 +49,8 @@ if rank != 0:
     os.dup2(_devnull, sys.stdout.fileno())
     os.dup2(_devnull, sys.stderr.fileno())
     os.close(_devnull)
-    sys.stdout = open(os.devnull, "w")
-    sys.stderr = open(os.devnull, "w")
+    sys.stdout = open(os.devnull, "w")  # noqa: SIM115
+    sys.stderr = open(os.devnull, "w")  # noqa: SIM115
 
 
 writer = build_writer(CONFIG.experiment_name) if rank == 0 else None
