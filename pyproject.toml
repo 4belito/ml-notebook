@@ -23,6 +23,7 @@ dependencies = [
     "ipywidgets>=8.1.8",
     "python-dotenv>=1.2.2",
     "torchmetrics>=1.9.0",
+    "tqdm>=4.0.0",
 ]
 
 [dependency-groups]
@@ -41,6 +42,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
+py-modules = ["helpers", "config"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

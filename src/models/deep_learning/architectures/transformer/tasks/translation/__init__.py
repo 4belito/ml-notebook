@@ -1,5 +1,3 @@
-from helpers import clear_cache, get_device
-
 from .config import Config
 from .dataset import (
     BilingualDataset,
@@ -7,6 +5,7 @@ from .dataset import (
     TranslationHFDataset,
     TranslationRow,
     causal_mask,
+    create_bilingual_datasets,
     create_dataloaders,
 )
 from .inference import greedy_decode, run_validation, translate_text
@@ -19,9 +18,7 @@ __all__ = [
     "BilingualDataset",
     "BilingualSample",
     "causal_mask",
-    "clear_cache",
     "create_dataloaders",
-    "get_device",
     "get_or_build_tokenizer",
     "greedy_decode",
     "run_validation",
@@ -30,4 +27,5 @@ __all__ = [
     "Translator",
     "TranslationHFDataset",
     "TranslationRow",
+    "create_bilingual_datasets",
 ]

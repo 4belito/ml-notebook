@@ -1,22 +1,22 @@
-# RUN 
-# There is no arguments handled by argparse, this is just a version of the 
-# training part of the translation notebook that can be run as a script. 
+# RUN
+# There is no arguments handled by argparse, this is just a version of the
+# training part of the translation notebook that can be run as a script.
 # To run:
 # cd ~/ml-notebook/src
 # python -m models.deep_learning.architectures.transformer.tasks.translation.run_train
 
-import os
 import shutil
 from pathlib import Path
 
+import torch
 from dotenv import load_dotenv
-from torch.utils.tensorboard import SummaryWriter
+from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.utils.data import DistributedSampler
 
 import models.deep_learning.architectures.transformer.tasks.translation as trn
+from helpers import build_writer, get_device, setup_ddp
 
-load_dotenv()
-device = trn.get_device()
-
+DDP_training = False
 CONFIG = trn.Config(
     batch_size=8,
     num_epochs=50,
@@ -31,22 +31,20 @@ CONFIG = trn.Config(
     model_basename="tmodel_",
 )
 
-
-def _build_writer(log_dir: str) -> SummaryWriter:
-    """Prefer local node storage for TensorBoard events to avoid Lustre I/O issues."""
-    user = os.environ.get("USER", "user")
-    local_log_dir = Path("/tmp") / user / "ml-notebook" / "runs"
-    local_log_dir.mkdir(parents=True, exist_ok=True)
-
-    try:
-        return SummaryWriter(str(local_log_dir / Path(log_dir).name))
-    except OSError as exc:
-        print(f"Local TensorBoard path unavailable ({exc}); falling back to {log_dir}")
-        return SummaryWriter(log_dir)
+load_dotenv()
+rank = 0  # overwritten by setup_ddp() when DDP_training=True
+if DDP_training:
+    rank, local_rank, world_size = setup_ddp()
+    device = torch.device(f"cuda:{local_rank}")
+else:
+    device = get_device()
 
 
-writer = _build_writer(CONFIG.experiment_name)
-Path(CONFIG.weights_folder).mkdir(parents=True, exist_ok=True)
+writer = build_writer(CONFIG.experiment_name) if rank == 0 else None
+
+## Data Preparation (only to the first process(rank == 0) if DDP_training)
+if not DDP_training or rank == 0:
+    Path(CONFIG.weights_folder).mkdir(parents=True, exist_ok=True)
 
 raw_ds = trn.TranslationHFDataset.load_dataset(
     path=CONFIG.datasource,
@@ -57,24 +55,35 @@ raw_ds = trn.TranslationHFDataset.load_dataset(
 src_file = Path(CONFIG.tokenizer_src_file)
 tgt_file = Path(CONFIG.tokenizer_tgt_file)
 
-for p in (src_file, tgt_file):
-    # Clean up accidental directories created in earlier runs.
-    if p.exists() and p.is_dir():
-        shutil.rmtree(p)
-    p.parent.mkdir(parents=True, exist_ok=True)
+if not DDP_training or rank == 0:
+    for p in (src_file, tgt_file):
+        # Clean up accidental directories created in earlier runs.
+        if p.exists() and p.is_dir():
+            shutil.rmtree(p)
+        p.parent.mkdir(parents=True, exist_ok=True)
+    # Rank 0 builds tokenizer files; other ranks wait at the barrier below
+    trn.get_or_build_tokenizer(src_file, raw_ds, CONFIG.src_lang)
+    trn.get_or_build_tokenizer(tgt_file, raw_ds, CONFIG.tgt_lang)
+
+if DDP_training:
+    # guarantee tokenizer files exist before all ranks load them
+    torch.distributed.barrier()
 
 tokenizer_src = trn.get_or_build_tokenizer(src_file, raw_ds, CONFIG.src_lang)
 tokenizer_tgt = trn.get_or_build_tokenizer(tgt_file, raw_ds, CONFIG.tgt_lang)
 
-src_file = Path(CONFIG.tokenizer_src_file)
-tgt_file = Path(CONFIG.tokenizer_tgt_file)
-src_file.parent.mkdir(parents=True, exist_ok=True)
-tokenizer_src = trn.get_or_build_tokenizer(src_file, raw_ds, CONFIG.src_lang)
-tokenizer_tgt = trn.get_or_build_tokenizer(tgt_file, raw_ds, CONFIG.tgt_lang)
 
+train_ds, val_ds = trn.create_bilingual_datasets(
+    raw_ds, tokenizer_src, tokenizer_tgt, CONFIG, verbose=True
+)
 
-train_dataloader, val_dataloader = trn.create_dataloaders(
-    raw_ds, tokenizer_src, tokenizer_tgt, CONFIG
+train_sampler = (
+    DistributedSampler(train_ds, num_replicas=world_size, rank=rank, shuffle=True)
+    if DDP_training
+    else None
+)
+train_dloader, val_dloader = trn.create_dataloaders(
+    CONFIG.batch_size, train_ds, val_ds, sampler=train_sampler
 )
 
 model = trn.Translator(
@@ -86,13 +95,22 @@ model = trn.Translator(
     embed_size=CONFIG.d_model,
 ).to(device)
 
+
+if DDP_training:
+    model = DDP(model, device_ids=[local_rank])
+
 trn.train(
     model=model,
-    train_dataloader=train_dataloader,
-    val_dataloader=val_dataloader,
+    train_dataloader=train_dloader,
+    val_dataloader=val_dloader,
     tokenizer_src=tokenizer_src,
     tokenizer_tgt=tokenizer_tgt,
-    device=device,
     config=CONFIG,
+    device=device,
+    rank=rank,
+    train_sampler=train_sampler,
     writer=writer,
 )
+
+if DDP_training:
+    torch.distributed.destroy_process_group()
