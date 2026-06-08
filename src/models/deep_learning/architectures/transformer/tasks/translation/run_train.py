@@ -5,9 +5,7 @@
 # cd ~/ml-notebook/src
 # python -m models.deep_learning.architectures.transformer.tasks.translation.run_train
 
-import os
 import shutil
-import sys
 from pathlib import Path
 
 import torch
@@ -40,17 +38,6 @@ if DDP_training:
     DDP_training = world_size > 1
 
 device = torch.device(f"cuda:{local_rank}") if DDP_training else get_device()
-
-# Redirect stdout/stderr on non-root ranks so only rank 0 produces output.
-# Use os.dup2 to redirect at the file-descriptor level so C extensions
-# (HF Hub, NCCL, tqdm) are also silenced, not just Python-level writes.
-if rank != 0:
-    _devnull = os.open(os.devnull, os.O_WRONLY)
-    os.dup2(_devnull, sys.stdout.fileno())
-    os.dup2(_devnull, sys.stderr.fileno())
-    os.close(_devnull)
-    sys.stdout = open(os.devnull, "w")  # noqa: SIM115
-    sys.stderr = open(os.devnull, "w")  # noqa: SIM115
 
 
 writer = build_writer(CONFIG.experiment_name) if rank == 0 else None
